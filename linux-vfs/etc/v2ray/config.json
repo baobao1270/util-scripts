@@ -1,0 +1,24 @@
+{
+    "log": {
+        "loglevel": "none"        
+    },
+    "inbounds": [{
+        "address": "127.0.0.1",
+        "port": 1080,
+        "protocol": "vmess",
+        "settings": {
+            "clients": [
+                {"id": "<uuid>", "alterId": 64}
+            ]
+        },
+        "streamSettings":{
+            "network": "ws",
+            "wsSettings": {
+                "path": "/ws/<path? my path is a sum256 of a poem sentence.>"
+            }
+        }
+    }],
+    "outbounds": [{
+        "protocol": "freedom"
+    }]
+}
