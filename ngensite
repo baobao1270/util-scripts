@@ -1,0 +1,83 @@
+#! /bin/bash
+
+# ================================================
+# Script: ngensite 
+#
+# Emulate what Apache's a2ensite does in debian 
+# distro which I really like.
+# 
+# @author   Wee Keat <weekeat@catchoftheday.com.au>
+# @since    March 2012
+# @TODO     + More complex
+# ================================================
+
+nginx_path=/etc/nginx
+nginx_avail=${nginx_path}/sites-available
+nginx_enabled=${nginx_path}/sites-enabled
+
+unset VERBOSE
+
+# I can haz cheezburgah?
+if [[ $EUID -ne 0 ]];
+then
+    echo "Sorry, but this script needs to be run as root!"
+    exit 1
+fi
+
+# How to use this script
+function usage()
+{
+    echo "Usage: "
+    echo "  $0 example.com"
+    echo 
+    echo "Options:"
+    echo "  -h for help (this message)"
+    echo "  -v for verbosity"
+}
+
+# Verbose
+function tell()
+{
+    if [ -n "$1" ] && [ -n "$VERBOSE" ]
+    then
+        echo "$1"
+    fi
+}
+
+while getopts "hv" opts
+do
+    case $opts in
+        h)
+            usage
+            exit 0
+            ;;
+        v)
+            VERBOSE=1
+            ;;
+        ?)
+            usage
+            exit 0
+            ;;
+    esac
+done
+
+if [ -z $1 ]
+then
+    echo "No arguments passed..."
+    usage
+    exit 1
+fi
+
+if [ -f "$nginx_enabled/$1" ]
+then
+    echo "The vhost is already enabled"
+    exit 0
+fi
+
+if [ -f "$nginx_avail/$1" ]
+then
+    echo "Enabling $1..."
+    ln -s "$nginx_avail/$1" "$nginx_enabled/$1"
+    echo "done"
+    exit 0
+fi
