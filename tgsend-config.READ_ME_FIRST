@@ -1,0 +1,8 @@
+#!/bin/bash
+
+# rename me to "~/.tgsend" first!
+export TGSEND_TOKEN="1234567890:XXXXXXXXX-XXXXXXXXX"
+export TGSEND_CHATID="@chat_name"
+
+# or use int id
+# export TGSEND_CHATID="-10012345678"
