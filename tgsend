@@ -1,0 +1,30 @@
+#!/bin/bash
+
+# Copyright (C) 2021 Joseph Chris <joseph@josephcz.xyz>
+# Under the MIT License, see: https://opensource.org/licenses/MIT
+
+# [Install]
+#     1. Search @BotFather on telegram, and use /newbot command
+#        to create a new bot. Complete the progress and remeber
+#        your access token.
+#     2. Create a new chat, group or channel, remeber your chat
+#        ID begin with @ sign. If it is private, see step 3.
+#     3. If your chat is private, run command:
+#            curl https://api.telegram.org/bot<token>/getUpdates
+#        replace the <token> with your access token.
+#        Response will look like this:
+#            "sender_chat":{"id":-100123,"title":"...","type":"channel"}
+#        the "id" field like -1001234567890123 is your chat ID.
+#     4. Rename "tgsend-config.READ_ME_FIRST" to ~/.tgsend
+#     5. Replace the TGSEND_TOKEN  to your access token.
+#        Replace the TGSEND_CHATID to your chat name (begin with @)
+#                                  or your chat id (like -100123)
+#     6. cp tgsend /usr/bin
+# [Usage]
+#     tgsend <message>
+
+source ~/.tgsend
+curl -s -k "https://api.telegram.org/bot$TGSEND_TOKEN/sendMessage" \
+    --data-urlencode "chat_id=$TGSEND_CHATID" \
+    --data-urlencode "text=$*" \
+    > /dev/null &
