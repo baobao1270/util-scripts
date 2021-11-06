@@ -7,10 +7,10 @@ from qcloud_cos import CosS3Client
 """
 [Install]
 Run in PowerShell:
-    $shortcut = (New-Object -COM WScript.Shell).CreateShortcut("$($env:APPDATA)\Microsoft\Windows\SendTo\COS2.lnk");
-    $python = cmd /c where python
-    $shortcut.TargetPath=$python
-    $shortcut.Arguments='"Path To This File"'
+    pip install -U cos-python-sdk-v5
+    $shortcut = (New-Object -COM WScript.Shell).CreateShortcut("$($env:APPDATA)\Microsoft\Windows\SendTo\Tencent COS.lnk")
+    $shortcut.TargetPath = (Get-Command -Name python        | Select-Object -Property Source -First 1).Source
+    $shortcut.Arguments  = (Get-Command -Name upload-to-cos | Select-Object -Property Source -First 1).Source
     $shortcut.Save()
 
 [Usage]
