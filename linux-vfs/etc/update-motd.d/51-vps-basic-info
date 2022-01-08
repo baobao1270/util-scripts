@@ -1,0 +1,16 @@
+#!/bin/bash
+# Joseph's Ubuntu Server VPS Basic Info MOTD v1.2.2
+# Apply for Ubuntu only, if using other system, please change it.
+# Installation: curl https://raw.githubusercontent.com/baobao1270/util-scripts/master/linux-vfs/etc/update-motd.d/51-vps-basic-info -o /etc/update-motd.d/51-vps-basic-info && chmod +x /etc/update-motd.d/51-vps-basic-info
+
+IP_GATEWAY="https://ncsi.josephcz.xyz/ip"    # Get IP by HTTP request, using author's API
+#IP_GATEWAY="http://119.29.29.29/d?dn=$(hostname)"    # Get IP by hostname, using DNSPod API
+
+echo "  "CPU Model:"   "`cat /proc/cpuinfo | grep "model name" | cut -d":" -f2 | head -n 1`
+echo "  "Memory Usage: `free -m | grep Mem | awk '{print $3}'`MiB/`free -m | grep Mem | awk '{print $2}'`MiB
+echo "  "Swap Usage:"   "`free -m | grep Swap | awk '{print $3}'`MiB/`free -m | grep Swap | awk '{print $2}'`MiB
+echo "  "Boot Time:"    "`uptime -s`
+echo "  "Current Time:" "`date +"%Y-%m-%d %H:%M:%S %Z"`
+echo "  "Uptime:"       "`uptime -p | cut -c4-`
+echo "  "Public IP:"    $__JMOTD_LOOPUP_IP_RES"
+echo "  "Hostname:"     "`hostname`
