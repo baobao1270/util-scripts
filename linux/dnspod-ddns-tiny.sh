@@ -1,4 +1,4 @@
-#!/bin/sh
+#!/bin/bash
 
 DP_ID="<id>"
 DP_TOKEN="<token>"
