@@ -1,0 +1,6 @@
+#!/bin/bash
+source ~/.tgsend
+curl -sf "https://api.telegram.org/bot$TGSEND_TOKEN/sendMessage" \
+    --data-urlencode "chat_id=$TGSEND_CHATID" \
+    --data-urlencode "text=$*" \
+    > /dev/null
