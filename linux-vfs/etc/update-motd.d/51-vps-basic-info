@@ -1,5 +1,5 @@
 #!/bin/bash
-# VPS Info Banner v1.3.1
+# VPS Info Banner v1.3.2
 # [LICENSE] MIT License / GPL 3.0+ / 01PL-2.0
 # [INSTALL] curl https://lty.name/vpsinfo -o /etc/update-motd.d/51-vps-info && chmod +x /etc/update-motd.d/51-vps-info
 
@@ -22,6 +22,6 @@ else
 	echo "  Uptime:        " `uptime -p | cut -c4-`
 fi
 echo "  Public IP:     " "$IP"
-echo "  Hostname:      " `hostname`
+echo "  Hostname:      " `[ -f /etc/hostname ] && cat /etc/hostname`
 echo ""
 
