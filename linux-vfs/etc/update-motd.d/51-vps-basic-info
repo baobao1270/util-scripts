@@ -1,5 +1,5 @@
 #!/bin/bash
-# VPS Info Banner v1.3.0
+# VPS Info Banner v1.3.1
 # [LICENSE] MIT License / GPL 3.0+ / 01PL-2.0
 # [INSTALL] curl https://lty.name/vpsinfo -o /etc/update-motd.d/51-vps-info && chmod +x /etc/update-motd.d/51-vps-info
 
@@ -14,7 +14,6 @@ echo "  CPU Model:     " "$CPU ($NCPU)"
 echo "  Memory Usage:  " `free -m | grep Mem | awk '{print $3}'`MiB/`free -m | grep Mem | awk '{print $2}'`MiB
 echo "  Swap Usage:    " `free -m | grep Swap | awk '{print $3}'`MiB/`free -m | grep Swap | awk '{print $2}'`MiB
 echo "  Current Time:  " `date +"%Y-%m-%d %H:%M:%S %Z"`
-echo "  Boot Time:     " `uptime -s`
 if [ "$(uptime --version | grep -c procps)" == "0" ]; then
 	# Fix for openSUSE
 	echo "  Uptime:        " `uptime | cut -d, -f1 | cut -d" " -f5-`
@@ -22,7 +21,6 @@ else
 	echo "  Boot Time:     " `uptime -s`
 	echo "  Uptime:        " `uptime -p | cut -c4-`
 fi
-echo "  Uptime:        " `uptime -p | cut -c4-`
 echo "  Public IP:     " "$IP"
 echo "  Hostname:      " `hostname`
 echo ""
