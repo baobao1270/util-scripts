@@ -1,11 +1,11 @@
 #!/bin/bash
-# VPS Info Banner v1.2.8
+# VPS Info Banner v1.2.9
 # [LICENSE] MIT License / GPL 3.0+ / 01PL-2.0
 # [INSTALL] curl https://lty.name/vpsinfo -o /etc/update-motd.d/51-vps-info && chmod +x /etc/update-motd.d/51-vps-info
 
 LANG=en
 #IP=$(curl -sf --connection-timeout 5 "https://ncsi.josephcz.xyz/ip")
-IP=$(dig +short $(cat /etc/hostname) @1.1.1.1)
+IP=$(dig +time=5 +retry=1 +tries=1 +short $(cat /etc/hostname) @1.1.1.1)
 CPU=$(lscpu | grep "^Model name" | head -1 | cut -d":" -f2 | xargs)
 NCPU=$(lscpu | grep "^CPU(s):" | head -1 | cut -d":" -f2 | xargs)
 
