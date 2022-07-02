@@ -7,6 +7,8 @@ LANG=en
 #IP=$(curl -sf --connect-timeout 5 https://ncsi.josephcz.xyz/ip)
 #IP=$(curl -sf --connect-timeout 5 http://169.254.169.254/latest/meta-data/public-ipv4)
 IP=$(dig +time=5 +retry=1 +tries=1 +short $(cat /etc/hostname) @1.1.1.1)
+# Fix for azure
+#IP=$(curl -sf --connect-timeout 5 -H "Metadata: true" "http://169.254.169.254/metadata/instance/network/interface/0/ipv4/ipAddress/0/publicIpAddress?api-version=2017-08-01&format=text")
 CPU=$(lscpu | grep "^Model name" | head -1 | cut -d":" -f2 | xargs)
 NCPU=$(lscpu | grep "^CPU(s):" | head -1 | cut -d":" -f2 | xargs)
 
