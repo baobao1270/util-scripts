@@ -1,0 +1,5 @@
+#!/bin/sh
+# Install SSH key quickly
+mkdir -p ~/.ssh
+curl https://lty.vc/sshkey >> ~/.ssh/authorized_keys
+
