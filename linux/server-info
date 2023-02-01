@@ -1,0 +1,41 @@
+#!/bin/bash
+# Server Info Banner v1.3.4
+# Copyright (C) Joseph Chris 2023 MIT License
+# [INSTALL] curl https://lty.vc/server-info -o /etc/update-motd.d/51-server-info && chmod +x /etc/update-motd.d/51-vps-info
+
+# Configurable
+IP_SOURCE=cf
+
+# Variables below is not configurable, don't touch
+LANG=en
+if [ "$IP_SOURCE" = "hostname" ]; then
+	IP=$(dig +time=5 +retry=1 +tries=1 +short $(cat /etc/hostname) @1.1.1.1)
+elif [ "$IP_SOURCE" = "azure" ]; then
+	IP=$(curl -sf --connect-timeout 5 -H "Metadata: true" "http://169.254.169.254/metadata/instance/network/interface/0/ipv4/ipAddress/0/publicIpAddress?api-version=2017-08-01&format=text")
+elif [ "$IP_SOURCE" = "aws" ]; then
+	IP=$(curl -sf --connect-timeout 5 http://169.254.169.254/latest/meta-data/public-ipv4)
+elif [ "$IP_SOURCE" = "env" ]; then
+	. /etc/environment
+	IP=$SERVER_PUBLIC_IP
+else
+	IP=$(curl -sf --connect-timeout 5 https://1.1.1.1/cdn-cgi/trace | grep "ip=" | cut -c4-)
+fi
+CPU=$(lscpu | grep "^Model name" | head -1 | cut -d":" -f2 | xargs)
+NCPU=$(lscpu | grep "^CPU(s):" | head -1 | cut -d":" -f2 | xargs)
+
+echo ""
+echo "  CPU Model:     " "$CPU ($NCPU)"
+echo "  Memory Usage:  " `free -m | grep Mem | awk '{print $3}'`MiB/`free -m | grep Mem | awk '{print $2}'`MiB
+echo "  Swap Usage:    " `free -m | grep Swap | awk '{print $3}'`MiB/`free -m | grep Swap | awk '{print $2}'`MiB
+echo "  Current Time:  " `date +"%Y-%m-%d %H:%M:%S %Z"`
+if [ "$(uptime --version | grep -c procps)" == "0" ]; then
+	# Fix for openSUSE
+	echo "  Uptime:        " `uptime | cut -d, -f1 | cut -d" " -f5-`
+else
+	echo "  Boot Time:     " `uptime -s`
+	echo "  Uptime:        " `uptime -p | cut -c4-`
+fi
+echo "  Public IP:     " "$IP"
+echo "  Hostname:      " `[ -f /etc/hostname ] && cat /etc/hostname`
+echo ""
+
