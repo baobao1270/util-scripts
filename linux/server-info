@@ -14,6 +14,8 @@ elif [ "$IP_SOURCE" = "azure" ]; then
 	IP=$(curl -sf --connect-timeout 5 -H "Metadata: true" "http://169.254.169.254/metadata/instance/network/interface/0/ipv4/ipAddress/0/publicIpAddress?api-version=2017-08-01&format=text")
 elif [ "$IP_SOURCE" = "aws" ]; then
 	IP=$(curl -sf --connect-timeout 5 http://169.254.169.254/latest/meta-data/public-ipv4)
+elif [ "$IP_SOURCE" = "gcp" ]; then
+	IP=$(curl -sf --connect-timeout 5 -H "Metadata-Flavor: Google" http://169.254.169.254/computeMetadata/v1/instance/network-interfaces/0/access-configs/0/external-ip)
 elif [ "$IP_SOURCE" = "env" ]; then
 	. /etc/environment
 	IP=$SERVER_PUBLIC_IP
