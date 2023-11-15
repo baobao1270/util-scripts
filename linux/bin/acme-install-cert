@@ -1,0 +1,21 @@
+#!/bin/bash
+domain=$1
+prefix=/etc/ssl/private/$domain
+
+if [ "$domain" = "" ]; then
+    echo "usage: $0 <domain>"
+    exit 2
+fi
+
+if [ ! command -v nginx &> /dev/null ]; then
+    echo "Command 'nginx' not found. Please install nginx first."
+    exit 1
+fi
+
+nginx -t && mkdir -p $prefix && ~/.acme.sh/acme.sh --install-cert \
+    --key-file        $prefix/key.pem \
+    --fullchain-file  $prefix/fullchain.pem \
+    --cert-file       $prefix/cert.pem \
+    --ca-file         $prefix/ca.pem \
+    --reloadcmd       "service nginx force-reload" \
+    -d "$domain" "${@:2}"
