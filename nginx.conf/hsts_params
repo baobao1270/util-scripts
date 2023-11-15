@@ -1,0 +1,3 @@
+add_header Strict-Transport-Security  "max-age=31536000; includeSubDomains; preload" always;
+add_header X-Content-Type-Options     "nosniff"                                      always;
+add_header Permissions-Policy         "interest-cohort=()"                           always;

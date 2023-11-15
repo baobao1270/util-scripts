@@ -1,0 +1,31 @@
+#!/usr/bin/env python3
+import argparse
+
+parser = argparse.ArgumentParser(description="Convert bytes to human readable units")
+parser.add_argument("bytes", type=int, help="Number of bytes to convert")
+args   = parser.parse_args()
+bytes  = args.bytes
+
+GiB = 1024 * 1024 * 1024
+MiB = 1024 * 1024
+KiB = 1024
+GB  = 1000 * 1000 * 1000
+MB  = 1000 * 1000
+KB  = 1000
+
+def convert_bytes(bytes_count, unit_multiplier):
+    unit_number = bytes_count // unit_multiplier
+    unit_remaining = bytes_count % unit_multiplier
+    return unit_number, unit_remaining
+
+remain = int(bytes)
+gib, remain = convert_bytes(remain, GiB)
+mib, remain = convert_bytes(remain, MiB)
+kib, remain = convert_bytes(remain, KiB)
+print(f"{gib} GiB, {mib} MiB, {kib} KiB, {remain} B")
+
+remain = int(bytes)
+gb, remain = convert_bytes(remain, GB)
+mb, remain = convert_bytes(remain, MB)
+kb, remain = convert_bytes(remain, KB)
+print(f"{gb} GB, {mb} MB, {kb} KB, {remain} B")
