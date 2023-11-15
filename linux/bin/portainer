@@ -1,0 +1,54 @@
+#!/bin/bash
+NAME=portainer
+IMAGE=portainer/portainer-ee:latest
+MEMORY=384m
+LISTEN_IP=0.0.0.0
+DOMAIN_NAME=example.com
+
+function start() {
+	docker run -d \
+		-m $MEMORY \
+		-p "$LISTEN_IP:8000:8000" \
+		-p "$LISTEN_IP:9443:9443" \
+		--name $NAME \
+		--restart=always \
+		-v /etc/ssl/private/$DOMAIN_NAME:/ssl \
+		-v /var/run/docker.sock:/var/run/docker.sock \
+		-v portainer:/data \
+		$IMAGE \
+		--sslcert /ssl/fullchain.pem \
+		--sslkey /ssl/key.pem
+}
+
+function stop() {
+	docker stop $NAME
+	docker rm $NAME
+}
+
+function restart() {
+	stop
+	start
+}
+
+function update() {
+	stop
+	docker image rm $IMAGE
+	start
+}
+
+action=$1
+if [ "$action" = "start" ]; then
+	start
+	exit 0
+elif [ "$action" = "stop" ]; then
+	stop
+	exit 0
+elif [ "$action" = "restart" ]; then
+	restart
+	exit 0
+elif [ "$action" = "update" ]; then
+	update
+	exit 0
+else
+	echo "usage: $0 <start|stop|restart|update>"
+fi

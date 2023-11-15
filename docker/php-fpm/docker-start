@@ -1,0 +1,2 @@
+#!/bin/sh
+docker run --rm -d -p 127.0.0.1:9000:9000 -v /var/www/html:/var/www/html php-fpm:$1

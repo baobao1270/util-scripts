@@ -1,0 +1,20 @@
+#!/bin/sh
+
+mkdir /conf
+cp -r /etc/$php /conf/php
+sed -i '/^include/d'                           /conf/php/php-fpm.conf
+echo   'include=/conf/php/php-fpm.d/www.conf' >> /conf/php/php-fpm.conf
+echo   'listen=0.0.0.0:9000'                  >> /conf/php/php-fpm.d/www.conf
+
+if [ ! -z "$FPM_UID" ]; then
+	if [ -z "$FPM_GID" ]; then
+		echo "FPM_GID not found, use FPM_GID=FPM_UID=$FPM_UID"
+		FPM_GID=$FPM_UID
+	fi
+	echo "FPM_UID: $FPM_UID"
+	echo "FPM_GID: $FPM_GID"
+	echo "user=$FPM_UID"  >> /conf/php/php-fpm.d/www.conf
+	echo "group=$FPM_GID" >> /conf/php/php-fpm.d/www.conf
+fi
+
+$fpm -FORy /conf/php/php-fpm.conf

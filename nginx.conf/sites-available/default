@@ -1,0 +1,26 @@
+server {
+	listen 80      default_server;
+	listen [::]:80 default_server;
+
+	location / {
+		return 301 https://$host$request_uri;
+	}
+}
+
+server {
+	listen 443      ssl http2 default_server;
+	listen [::]:443 ssl http2 default_server;
+	server_name     _;
+	root            /var/www/html;
+	include         ssl_params;
+	include         ocsp_params;
+
+	index                    index.html;
+	ssl_certificate          /etc/ssl/private/#domain#/fullchain.pem;
+	ssl_certificate_key      /etc/ssl/private/#domain#/key.pem;
+	ssl_trusted_certificate  /etc/ssl/private/#domain#/ca.pem;
+
+	location / {
+		try_files $uri $uri/ =404;
+	}
+}
