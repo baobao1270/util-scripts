@@ -1,9 +1,4 @@
 FROM alpine:3.18
-LABEL org.opencontainers.image.source=https://github.com/baobao1270/util-scripts/blob/master/docker/php-fpm
-LABEL org.opencontainers.image.documentation=https://github.com/baobao1270/util-scripts/blob/master/docker/php-fpm/README.md
-LABEL org.opencontainers.image.title="PHP-FPM"
-LABEL org.opencontainers.image.description="PHP-FPM"
-LABEL org.opencontainers.image.licenses=PHP-3.01
 ENV  php=php82
 ENV  fpm=php-fpm82
 RUN  apk update && \
