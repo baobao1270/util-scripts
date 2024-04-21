@@ -12,7 +12,7 @@ if [ ! command -v nginx &> /dev/null ]; then
     exit 1
 fi
 
-nginx -t && mkdir -p $prefix && ~/.acme.sh/acme.sh --install-cert \
+nginx -t && mkdir -p  $prefix && acme.sh --install-cert \
     --key-file        $prefix/key.pem \
     --fullchain-file  $prefix/fullchain.pem \
     --cert-file       $prefix/cert.pem \

@@ -1,0 +1,103 @@
+#!/bin/bash
+# acme.sh-fhs v1.0.0
+# The FHS (Filesystem Hierarchy Standard) install of acme.sh
+# Copyright (c) 2020 Joseph Chris oseph Chris <joseph@josephcz.xyz> under MIT License
+#
+# This script will do the following:
+# 1. Install master branch acme.sh to
+#        /usr/local/share/acme.sh
+# 2. Set the "home" directory of acme.sh to
+#        /usr/local/share/acme.sh
+# 3. Create a wrapper acme.sh script at
+#        /usr/local/bin/acme.sh
+# 4. To use **SYSTEMD** to renew certificates, the script install
+#        /etc/systemd/system/acme.sh-renew.service
+#        /etc/systemd/system/acme.sh-renew.timer
+# 5. For backwards compatibility, the script creates a symlink at
+#        /usr/local/etc/acme.sh -> /etc/acme.sh
+
+prefix="/usr/local"
+function check_dirs {
+    if [ -d $prefix/share/acme.sh ]; then
+        echo -e "Error: \033[4m$prefix/share/acme.sh\033[0m already exists. Please remove it first."
+        exit 1
+    fi
+    if [ -d $prefix/etc/acme.sh ]; then
+        echo -e "Error: \033[4m$prefix/etc/acme.sh\033[0m already exists. Please remove it first."
+        exit 1
+    fi
+    if [ -f $prefix/bin/acme.sh ]; then
+        echo -e "Error: \033[4m$prefix/bin/acme.sh\033[0m already exists. Please remove it first."
+        exit 1
+    fi
+    mkdir -p $prefix/share \
+             $prefix/bin   \
+             $prefix/etc
+}
+
+check_dirs
+release_url="https://github.com/acmesh-official/acme.sh/archive/refs/heads/master.zip"
+unarchive_dir=$(mktemp -d)
+curl  -Lso $unarchive_dir/acme.sh.zip      $release_url
+unzip -qo  $unarchive_dir/acme.sh.zip -d   $unarchive_dir
+mv         $unarchive_dir/acme.sh-master   $prefix/share/acme.sh
+rm    -rf  $unarchive_dir
+chmod +x                                   $prefix/share/acme.sh/acme.sh
+echo "Installed: $prefix/share/acme.sh"
+
+cat << EOF >   $prefix/bin/acme.sh
+#!/bin/sh
+set -e
+exec $prefix/share/acme.sh/acme.sh --home $prefix/etc/acme.sh "\$@"
+EOF
+chmod +x       $prefix/bin/acme.sh
+echo "Installed: $prefix/bin/acme.sh"
+
+mkdir -p       $prefix/etc/acme.sh
+ln    -s       $prefix/etc/acme.sh  /etc/acme.sh
+echo "Installed: $prefix/etc/acme.sh"
+echo "Installed: /etc/acme.sh -> $prefix/etc/acme.sh"
+
+cat << EOF >     /etc/systemd/system/acme.sh-renew.service
+[Unit]
+Description=A pure Unix shell script implementing ACME client protocol
+After=network-online.target
+
+[Service]
+Type=oneshot
+ExecStart=/usr/local/bin/acme.sh --cron
+EOF
+echo "Installed: /etc/systemd/system/acme.sh-renew.service"
+
+cat << EOF >     /etc/systemd/system/acme.sh-renew.timer
+[Unit]
+Description=Renew certificates with acme.sh
+
+[Timer]
+OnCalendar=*-*-* 19:07:12
+Persistent=true
+
+[Install]
+WantedBy=timers.target
+EOF
+echo "Installed: /etc/systemd/system/acme.sh-renew.timer"
+
+curl  -Lso       $prefix/bin/acme.sh-install-cert     https://lty.vc/acme.sh-install-cert
+chmod +x         $prefix/bin/acme.sh-install-cert
+echo "Installed: $prefix/bin/acme.sh-install-cert"
+
+systemctl daemon-reload
+systemctl enable acme.sh-renew.service
+systemctl start  acme.sh-renew.service
+echo "Enabled: acme.sh-renew.service"
+systemctl enable acme.sh-renew.timer
+systemctl start  acme.sh-renew.timer
+echo "Enabled: acme.sh-renew.timer"
+
+echo -e "\n\n\033[1;4;32mInstallation complete.\033[0m"
+whereis acme.sh
+acme.sh --version
+acme.sh --set-default-ca --server letsencrypt
+echo -e "\n\nDone."
+echo -e "Run \033[1;4;33macme.sh --set-default-ca --server letsencrypt|google|zerossl\033[0m to set default CA."
+echo -e "Run \033[1;4;33macme.sh --register-account --email <email>\033[0m to get started."

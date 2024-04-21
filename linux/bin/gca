@@ -1,0 +1,46 @@
+#!/bin/bash
+function obtian_service_account() {
+    if [ "$(uname)" == "Darwin" ]; then
+        obtian_service_account_keychain | base64 -d
+    else
+        cat $HOME/.googleca-sa.json
+    fi
+}
+
+function obtian_service_account_keychain() {
+    KEYCHAIN_ENTRY_NAME="gcloud"
+    security find-generic-password -s "$KEYCHAIN_ENTRY_NAME" -w
+}
+
+function create_jwt() {
+    SA="$1"
+    PRIVATE_KEY_FILE=$(mktemp)
+    SA_EMAIL=$(echo "$SA" | jq -r '.client_email')
+    SA_PRIVATE_KEY=$(echo "$SA" | jq -r '.private_key')
+    echo "$SA_PRIVATE_KEY" > $PRIVATE_KEY_FILE
+
+    JWT_SCOPE="https://www.googleapis.com/auth/cloud-platform"
+    JWT_AUD="https://oauth2.googleapis.com/token"
+    JWT_ISS="$SA_EMAIL"
+    JWT_IAT=$(date +%s)
+    JWT_EXP=$(($JWT_IAT + 3600))
+    JWT_HEADER='{"alg":"RS256","typ":"JWT"}'
+    JWT_PAYLOAD='{
+        "iss": "'$JWT_ISS'",
+        "scope": "'$SCOPE'",
+        "aud": "'$JWT_AUD'",
+        "exp": '$JWT_EXP',
+        "iat": '$JWT_IAT'
+    }'
+    BASE64_JWT_HEADER=$(echo -n "$JWT_HEADER" | base64 | tr -d '=' | tr '/+' '_-' | tr -d '\n')
+    BASE64_JWT_PAYLOAD=$(echo -n "$JWT_PAYLOAD" | base64 | tr -d '=' | tr '/+' '_-' | tr -d '\n')
+    BASE64_JWT_SIGNATURE=$(echo -n "$BASE64_JWT_HEADER.$BASE64_JWT_PAYLOAD" | openssl dgst -sha256 -sign "$PRIVATE_KEY_FILE" | openssl base64 -A | tr '+/' '-_' | tr -d '=')
+    printf "%s.%s.%s" "$BASE64_JWT_HEADER" "$BASE64_JWT_PAYLOAD" "$BASE64_JWT_SIGNATURE"
+}
+
+function auth() {
+    JWT="$1"
+    TOKEN_URL="https://oauth2.googleapis.com/token"
+    ACCESS_TOKEN=$(curl -s -X POST -d "grant_type=urn:ietf:params:oauth:grant-type:jwt-bearer&assertion=$JWT" "$TOKEN_URL" | jq -r '.access_token')
+    echo "$ACCESS_TOKEN"
+}
