@@ -1,0 +1,237 @@
+#!/bin/bash
+
+[ -z "$XRAY_VERSION"  ] && XRAY_VERSION="1.8.11"
+[ -z "$ARCH"          ] && ARCH=64
+[ -z "$DOWNLOAD_URL"  ] && DOWNLOAD_URL="https://github.com/XTLS/Xray-core/releases/download/v${XRAY_VERSION}/Xray-linux-${ARCH}.zip"
+[ -z "$GEOIP_URL"     ] && GEOIP_URL="https://github.com/v2fly/geoip/releases/latest/download/geoip.dat"
+[ -z "$GEOSITE_URL"   ] && GEOSITE_URL="https://github.com/v2fly/domain-list-community/releases/latest/download/dlc.dat"
+[ -z "$AES256_PASSWD" ] && AES256_PASSWD=""
+
+panic() {
+    echo -e "\033[01;31mError: $1\033[0m" 1>&2
+    exit 1
+}
+
+check_command() {
+    echo -e "\033[01mChecking command: \033[01;04m$1\033[0m"
+    if ! command -v $1 &> /dev/null; then
+        panic "$1 could not be found"
+    fi
+}
+
+check_installed() {
+    printable_aes256_passwd="$AES256_PASSWD"
+    if [ -z "$printable_aes256_passwd" ]; then
+        printable_aes256_passwd="\033[01;30m(unset)\033[0m"
+    else
+        printable_aes256_passwd="[REDACTED]"
+    fi
+    echo -e "\033[01;33mConfigurations\033[0m"
+    echo -e "    \033[01mXRAY_VERSION\033[0m:  $XRAY_VERSION"
+    echo -e "    \033[01mARCH\033[0m:          $ARCH"
+    echo -e "    \033[01mDOWNLOAD_URL\033[0m:  $DOWNLOAD_URL"
+    echo -e "    \033[01mGEOIP_URL\033[0m:     $GEOIP_URL"
+    echo -e "    \033[01mGEOSITE_URL\033[0m:   $GEOSITE_URL"
+    echo -e "    \033[01mAES256_PASSWD\033[0m: $printable_aes256_passwd"
+
+    if command -v xray &> /dev/null; then
+        panic "Xray is already installed"
+    fi
+    if command -v v2ray &> /dev/null; then
+        panic "V2Ray is already installed"
+    fi
+    if [ -f /etc/systemd/system/xray.service ]; then
+        panic "Xray (FHS) is already installed"
+    fi
+}
+
+download() {
+    url="$1"
+    dist="$2"
+    dist_cipher="$dist.enc"
+    dist_plaintext="$dist"
+    echo -e "\033[01mDownloading: \033[01;04m$url\033[0m"
+    curl -L -q --retry 5 --retry-delay 10 --retry-max-time 60 -o "$dist_cipher" "$url"
+    [ $? -eq 0 ] || panic "Download failed: $url"
+    if [ -z "$AES256_PASSWD" ]; then
+        # No password, just use the downloaded file
+        mv "$dist_cipher" "$dist"
+    else
+        echo -e "\033[01mDecrypting: \033[01;04m$dist_cipher\033[0m"
+        # encrypt with: openssl enc -aes-256-cbc -pbkdf2 -in <infile> -out <outfile> -k <password>
+        openssl aes-256-cbc -d -pbkdf2 -in "$dist_cipher" -out "$dist_plaintext" -k "$AES256_PASSWD"
+        [ $? -eq 0 ] || panic "Decrypt failed: $dist_cipher"
+    fi
+}
+
+install_file() {
+    mode="$1"
+    src="$2"
+    dst="$3"
+    echo -e "\033[01mInstalling: \033[01;04m$dst\033[0m"
+    install -Dm $mode "$src" "$dst"
+}
+
+create_symlink() {
+    src="$1"
+    dst="$2"
+    echo -e "\033[01mCreating symlink: \033[01;04m$dst\033[0m -> $src"
+    ln -sf "$src" "$dst"
+}
+
+main() {
+    [ $UID -eq 0 ] || panic "Please run as root"
+    check_installed
+    check_command curl
+    check_command unzip
+    check_command install
+    check_command openssl
+
+    tmpdir=$(mktemp -d)
+    download     "$DOWNLOAD_URL" "$tmpdir/xray.zip"
+    download     "$GEOIP_URL"    "$tmpdir/geoip.dat"
+    download     "$GEOSITE_URL"  "$tmpdir/geosite.dat"
+    unzip    -q  "$tmpdir/xray.zip" -d "$tmpdir/xray"
+    if [ $? -ne 0 ]; then
+        panic "Failed to extract Xray"
+    fi
+
+    install_file 755 "$tmpdir/xray/xray"           /usr/local/bin/xray
+    install_file 644 "$tmpdir/geoip.dat"           /usr/local/share/xray/geoip.dat
+    install_file 644 "$tmpdir/geosite.dat"         /usr/local/share/xray/geosite.dat
+    confgen_systemd  "$tmpdir"
+    confgen_base     "$tmpdir"
+    confgen_reality  "$tmpdir"
+    confgen_warp     "$tmpdir"
+    install_file 644 "$tmpdir/xray.service"        /etc/systemd/system/xray.service
+    install_file 600 "$tmpdir/00-xray.toml"        /usr/local/etc/xray/00-xray.toml
+    install_file 600 "$tmpdir/10-reality.toml"     /usr/local/etc/xray/10-reality.toml
+    install_file 600 "$tmpdir/12-tail-cfwarp.toml" /usr/local/etc/xray/12-tail-cfwarp.toml
+
+    create_symlink /usr/local/bin/xray /usr/local/bin/v2ray
+    create_symlink /usr/local/etc/xray /usr/local/etc/v2ray
+    create_symlink /usr/local/etc/xray /etc/xray
+    create_symlink /usr/local/etc/xray /etc/v2ray
+
+    echo -e "\033[01;33mCleaning up temporary files...\033[0m"
+    rm -rvf "$tmpdir"
+    echo -e "\033[01;33mReloading systemd daemo...\033[0m"
+    systemctl daemon-reload
+    systemctl enable xray
+    echo -e "\033[01;32mXray now is set to start on boot\033[0m"
+    echo -e "\033[01;33mBy default, Xray won't start now until next boot\033[0m"
+    echo -e "\033[01;33mTo start Xray now, please run: \033[00;01;04msystemctl start xray\033[0m"
+    echo -e "\033[01;33mTesting Xray configuration\033[0m"
+    /usr/local/bin/xray run -confdir /usr/local/etc/xray -test
+    echo -e "\033[01;32mXray has been installed successfully\033[0m"
+}
+
+confgen_systemd() {
+    tmpdir="$1"
+    cat > $tmpdir/xray.service << EOF
+[Unit]
+Description=A unified platform for anti-censorship
+Documentation=https://github.com/XTLS/Xray-core
+After=network.target nss-lookup.target
+
+[Service]
+CapabilityBoundingSet=CAP_NET_ADMIN CAP_NET_BIND_SERVICE
+AmbientCapabilities=CAP_NET_ADMIN CAP_NET_BIND_SERVICE
+NoNewPrivileges=true
+ExecStart=/usr/local/bin/xray run -confdir /usr/local/etc/xray
+Restart=on-failure
+RestartPreventExitStatus=23
+LimitNPROC=10000
+LimitNOFILE=1000000
+
+[Install]
+WantedBy=multi-user.target
+Alias=v2ray.service
+EOF
+}
+
+confgen_base() {
+    tmpdir="$1"
+    cat > $tmpdir/00-xray.toml << EOF
+[log]
+access = "none"
+loglevel = "info"
+
+[dns]
+servers = [
+    "https+local://1.1.1.1/dns-query",
+    "8.8.8.8"
+]
+
+[routing]
+domainStrategy = "IPIfNonMatch"
+
+[[routing.rules]]
+type        = "field"
+outboundTag = "block"
+ip          = ["geoip:private", "geoip:cn"]
+
+[[outbounds]]
+protocol = "freedom"
+tag      = "direct"
+
+[[outbounds]]
+protocol = "blackhole"
+tag      = "block"
+EOF
+}
+
+confgen_reality() {
+    x25519_priv=$(/usr/local/bin/xray x25519 | grep "Private key" | cut -d":" -f2 | tr -d " \n")
+    user_id1=$(/usr/local/bin/xray uuid | tr -d " \n")
+    user_id2=$(/usr/local/bin/xray uuid | tr -d " \n")
+    short_id=$(openssl rand -hex 8 | tr -d " \n")
+    tmpdir="$1"
+    cat > $tmpdir/10-reality.toml << EOF
+[[inbounds]]
+listen   = "0.0.0.0"
+port     = 8443
+protocol = "vless"
+settings.decryption = "none"
+
+[inbounds.streamSettings]
+network  = "tcp"
+security = "reality"
+realitySettings.privateKey  = "$x25519_priv"
+realitySettings.dest        = "www.cloudflare.com:443"
+realitySettings.serverNames = [
+    "www.cloudflare.com"
+]
+realitySettings.shortIds = ["$short_id"]
+
+[[inbounds.settings.clients]]
+id    = "$user_id1"
+flow  = "xtls-rprx-vision"
+email = "reality-direct@xtls.github.io"
+
+[[inbounds.settings.clients]]
+id    = "$user_id2"
+flow  = "xtls-rprx-vision"
+email = "warp@cloudflare.com"
+EOF
+}
+
+confgen_warp() {
+    tmpdir="$1"
+    cat > $tmpdir/12-tail-cfwarp.toml << EOF
+[[routing.rules]]
+type        = "field"
+outboundTag = "warp"
+user        = ["warp@cloudflare.com"]
+
+[[outbounds]]
+protocol = "socks"
+tag      = "warp"
+settings.servers = [
+    {address = "127.0.0.1", port = 1080}
+]
+EOF
+}
+
+main
+
