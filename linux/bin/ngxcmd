@@ -155,6 +155,8 @@ elif [ "$command" = "disable" ]; then
     disable_nginx_site "$2" "$3"
 elif [ "$command" = "install" ]; then
     do_install
+elif [ "$command" = "update" ]; then
+    do_update
 else
     echo "Usage: ngxcmd [command]"
     echo "Commands:"
