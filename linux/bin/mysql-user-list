@@ -1,3 +1,9 @@
-#!/bin/sh
+#!/bin/bash
+# mysql-user-list.sh - v1.0.0
+# Copyight (c) 2024 Joseph Chris <joseph@josephcz.xyz> under MIT License
+#
+# A script to list mysql / mariadb users and their hosts.
+#
+
 mysql -e "select user,host from mysql.user;"
 mysql -e "flush privileges;"

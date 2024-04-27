@@ -1,7 +1,13 @@
 #!/bin/bash
-# Server Info Banner v1.3.4
-# Copyright (C) Joseph Chris 2023 MIT License
-# [INSTALL] curl https://lty.vc/server-info -o /etc/update-motd.d/51-server-info && chmod +x /etc/update-motd.d/51-vps-info
+# server-info.sh - v1.3.4
+# Copyight (c) 2024 Joseph Chris <joseph@josephcz.xyz> under MIT License
+#
+# A script to gather server information and display it as a banner.
+#
+# To install this script, run:
+#     curl https://lty.vc/server-info -o /etc/update-motd.d/20-server-info && chmod +x /etc/update-motd.d/20-server-info
+# For Ubuntu users, change '20' to '51' to make the banners shown in appropriate order.
+#
 
 # Configurable
 IP_SOURCE=cf
@@ -42,4 +48,3 @@ fi
 echo "  Public IP:     " "$IP"
 echo "  Hostname:      " `[ -f /etc/hostname ] && cat /etc/hostname`
 echo ""
-

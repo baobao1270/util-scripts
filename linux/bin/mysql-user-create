@@ -1,6 +1,12 @@
 #!/bin/bash
-username=$1
-password=$(uuidgen)
+# mysql-user-create.sh - v1.0.0
+# Copyight (c) 2024 Joseph Chris <joseph@josephcz.xyz> under MIT License
+#
+# A script to create mysql / mariadb user for application.
+#
+
+username="$1"
+password="$(uuidgen)"
 
 if [ "$username" = "" ]; then
     echo "Usage: $0 <username>"

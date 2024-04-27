@@ -1,8 +1,13 @@
 #!/bin/sh
+# tinyddns-alidns.sh - v1.0.0
+# Copyight (c) 2024 Joseph Chris <joseph@josephcz.xyz> under MIT License
+#
+# A tiny DDNS update script for Aliyun DNS, targeting slim environments liek Docker or OpenWRT.
+#
 
 ALI_AKID="<AccessKey ID>"
 ALI_AKSC="<AccessKey Secret>"
-IP_CHKURL="https://ncsi.josephcz.xyz/ip.php" # The website that can return a IP address in text/plain
+IP_CHKURL="https://lty.vc/ip" # The website that can return a IP address in text/plain
 RR="ddns"            # subdomain
 ZONE="josephcz.xyz"  # domian
 IP=$(curl -s -k $IP_CHKURL)

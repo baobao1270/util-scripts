@@ -1,7 +1,8 @@
 #!/bin/bash
-# acme.sh-fhs v1.0.0
+# acme.sh-fhs - v1.1.0
+# Copyight (c) 2024 Joseph Chris <joseph@josephcz.xyz> under MIT License
+#
 # The FHS (Filesystem Hierarchy Standard) install of acme.sh
-# Copyright (c) 2020 Joseph Chris oseph Chris <joseph@josephcz.xyz> under MIT License
 #
 # This script will do the following:
 # 1. Install master branch acme.sh to
@@ -15,6 +16,7 @@
 #        /etc/systemd/system/acme.sh-renew.timer
 # 5. For backwards compatibility, the script creates a symlink at
 #        /usr/local/etc/acme.sh -> /etc/acme.sh
+#
 
 prefix="/usr/local"
 function check_dirs {
@@ -30,9 +32,9 @@ function check_dirs {
         echo -e "Error: \033[4m$prefix/bin/acme.sh\033[0m already exists. Please remove it first."
         exit 1
     fi
-    mkdir -p $prefix/share \
-             $prefix/bin   \
-             $prefix/etc
+    install -d -o root -g root -m 755 $prefix/share
+    install -d -o root -g root -m 755 $prefix/bin
+    install -d -o root -g root -m 755 $prefix/etc
 }
 
 check_dirs
@@ -85,6 +87,24 @@ echo "Installed: /etc/systemd/system/acme.sh-renew.timer"
 curl  -Lso       $prefix/bin/acme.sh-install-cert     https://lty.vc/acme.sh-install-cert
 chmod +x         $prefix/bin/acme.sh-install-cert
 echo "Installed: $prefix/bin/acme.sh-install-cert"
+
+hooks_dir=/usr/local/etc/acme.sh/post-renew.hooks
+install -d -o root -g root -m 755 $hooks_dir
+echo << EOF >  $hooks_dir/00-reload-ngnix
+#!/bin/bash
+if [ ! command -v nginx &> /dev/null ]; then
+    echo "Command 'nginx' not found. Skipping."
+    exit 0
+fi
+
+if [ ! nginx -t &> /dev/null ]; then
+    echo "Error: Failed to pass nginx configuration test."
+    exit 1
+fi
+
+echo "Reloading nginx..."
+systemctl force-reload nginx
+EOF
 
 systemctl daemon-reload
 systemctl enable acme.sh-renew.service

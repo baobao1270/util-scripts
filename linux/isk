@@ -1,5 +1,12 @@
 #!/bin/sh
-# Install SSH key quickly
+# isk.sh - v1.0.0
+# Copyight (c) 2024 Joseph Chris <joseph@josephcz.xyz> under MIT License
+#
+# Install the SSH key to the current user's authorized_keys file
+#
+# Note: the server hosting my SSH key will log IP address of client!
+# Do not try if you don't want me access your server.
+#
+
 mkdir -p ~/.ssh
 curl https://lty.vc/sshkey >> ~/.ssh/authorized_keys
-
