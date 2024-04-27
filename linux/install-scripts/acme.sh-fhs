@@ -1,5 +1,5 @@
 #!/bin/bash
-# acme.sh-fhs - v1.1.0
+# acme.sh-fhs - v1.1.1
 # Copyight (c) 2024 Joseph Chris <joseph@josephcz.xyz> under MIT License
 #
 # The FHS (Filesystem Hierarchy Standard) install of acme.sh
@@ -90,7 +90,7 @@ echo "Installed: $prefix/bin/acme.sh-install-cert"
 
 hooks_dir=/usr/local/etc/acme.sh/post-renew.hooks
 install -d -o root -g root -m 755 $hooks_dir
-echo << EOF >  $hooks_dir/00-reload-ngnix
+cat << EOF >  $hooks_dir/00-reload-ngnix
 #!/bin/bash
 if [ ! command -v nginx &> /dev/null ]; then
     echo "Command 'nginx' not found. Skipping."
