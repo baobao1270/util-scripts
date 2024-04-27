@@ -1,0 +1,166 @@
+#!/bin/bash
+# ngxcmd.sh - v0.1.0
+# Copyight (c) 2024 Joseph Chris <joseph@josephcz.xyz> under MIT License
+#
+# Simple script to manage NGINX sites
+#
+
+enable_nginx_site() {
+    local name="$1"
+    local reload="$2"
+    if [ -z "$name" ]; then
+        echo "Usage: ngxcmd enable <site-name> [--reload]"
+        return 1
+    fi
+
+    if [ ! -f "/etc/nginx/sites-available/$1" ]; then
+        echo "Site $1 not found"
+        return 1
+    fi
+
+    if [ -f "/etc/nginx/sites-enabled/$1" ]; then
+        echo "Site $1 already enabled"
+        return 1
+    fi
+
+    sudo ln -s /etc/nginx/sites-available/$1 /etc/nginx/sites-enabled/$1
+
+    if [ "$reload" = "--reload" ]; then
+        echo "Reloading NGINX"
+        nginx -t
+        if [ $? -ne 0 ]; then
+            echo "Failed to pass nginx test, skip reloading to prevent service downtime"
+            return 1
+        fi
+        sudo systemctl reload nginx
+    fi
+}
+
+disable_nginx_site() {
+    local name="$1"
+    local reload="$2"
+    if [ -z "$name" ]; then
+        echo "Usage: ngxcmd disable <site-name> [--reload]"
+        return 1
+    fi
+
+    if [ ! -L "/etc/nginx/sites-enabled/$1" ]; then
+        echo "Refuse to remove non-symlink file: /etc/nginx/sites-enabled/$1"
+        return 1
+    fi
+
+    sudo rm /etc/nginx/sites-enabled/$1
+
+    if [ "$reload" = "--reload" ]; then
+        echo "Reloading NGINX"
+        nginx -t
+        if [ $? -ne 0 ]; then
+            echo "Failed to pass nginx test, skip reloading to prevent service downtime"
+            return 1
+        fi
+        sudo systemctl reload nginx
+    fi
+}
+
+do_install() {
+    cat > /usr/local/bin/ngensite <<'EOF'
+#!/bin/sh
+set -e
+ngxcmd enable "$@"
+EOF
+    cat > /usr/local/bin/ngdissite <<'EOF'
+#!/bin/sh
+set -e
+ngxcmd disable "$@"
+EOF
+    chown root:root /usr/local/bin/{ngxcmd,ngensite,ngdissite}
+    chmod 744       /usr/local/bin/{ngxcmd,ngensite,ngdissite}
+    sed -n '/^#---begin-complete---/,/#---end-complete---$/p' /usr/local/bin/ngxcmd >  /etc/bash_completion.d/ngxcmd
+    echo '__ngxcmd_complete_register'                                                 >> /etc/bash_completion.d/ngxcmd
+}
+
+do_update() {
+    local update_url=https://lty.vc/ngxcmd
+    curl -SsfL $update_url -o /usr/local/bin/ngxcmd
+    if [ $? -ne 0 ]; then
+        echo "Failed to download ngxcmd"
+        return 1
+    fi
+    do_install
+}
+
+#---begin-complete---
+__ngxcmd_complete() {
+    local cur prev
+    cur="${COMP_WORDS[COMP_CWORD]}"
+    prev="${COMP_WORDS[COMP_CWORD-1]}"
+    if [ $COMP_CWORD -eq 1 ]; then
+        COMPREPLY=($(compgen -W "enable disable install update" -- $cur))
+    elif [ $COMP_CWORD -eq 2 ]; then
+        if [ "$prev" = "enable" ]; then
+            COMPREPLY=($(compgen -W "$(ls /etc/nginx/sites-available)" -- $cur))
+        elif [ "$prev" = "disable" ]; then
+            COMPREPLY=($(compgen -W "$(ls /etc/nginx/sites-enabled)" -- $cur))
+        fi
+    elif [ $COMP_CWORD -eq 3 ]; then
+        if [ "$prev" = "enable" ] || [ "$prev" = "disable" ]; then
+            COMPREPLY=($(compgen -W "--reload" -- $cur))
+        fi
+    else
+        COMPREPLY=()
+    fi
+}
+
+__ngensite_complete() {
+    local cur prev
+    cur="${COMP_WORDS[COMP_CWORD]}"
+    prev="${COMP_WORDS[COMP_CWORD-1]}"
+    if [ $COMP_CWORD -eq 1 ]; then
+        COMPREPLY=($(compgen -W "$(ls /etc/nginx/sites-available)" -- $cur))
+    elif [ $COMP_CWORD -eq 2 ]; then
+        COMPREPLY=($(compgen -W "--reload" -- $cur))
+    else
+        COMPREPLY=()
+    fi
+}
+
+__ngdissite_complete() {
+    local cur prev
+    cur="${COMP_WORDS[COMP_CWORD]}"
+    prev="${COMP_WORDS[COMP_CWORD-1]}"
+    if [ $COMP_CWORD -eq 1 ]; then
+        COMPREPLY=($(compgen -W "$(ls /etc/nginx/sites-enabled)" -- $cur))
+    elif [ $COMP_CWORD -eq 2 ]; then
+        COMPREPLY=($(compgen -W "--reload" -- $cur))
+    else
+        COMPREPLY=()
+    fi
+}
+
+__ngxcmd_complete_register() {
+    complete -F __ngxcmd_complete    ngxcmd
+    complete -F __ngensite_complete  ngensite
+    complete -F __ngdissite_complete ngdissite
+}
+#---end-complete---
+
+if [ ! -d /etc/nginx/sites-available ] || [ ! -d /etc/nginx/sites-enabled ]; then
+    echo "NGINX sites directory not found"
+    exit 1
+fi
+command="$1"
+if [ "$command" = "enable" ]; then
+    enable_nginx_site  "$2" "$3"
+elif [ "$command" = "disable" ]; then
+    disable_nginx_site "$2" "$3"
+elif [ "$command" = "install" ]; then
+    do_install
+else
+    echo "Usage: ngxcmd [command]"
+    echo "Commands:"
+    echo "  enable      Enable a site"
+    echo "  disable     Disable a site"
+    echo "  install     Install utility commands (ngensite, ngdissite) and bash completion"
+    echo "  update      Update ngxcmd to the latest version"
+    exit 1
+fi

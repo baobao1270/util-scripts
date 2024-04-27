@@ -1,5 +1,0 @@
-#!/bin/sh
-BASE_URL=https://raw.githubusercontent.com/baobao1270/util-scripts/master/linux/bin
-DEST_PATH=/usr/local/bin
-sudo curl $BASE_URL/ngensite  > $DEST_PATH/ngensite   && chmod +x $DEST_PATH/ngensite
-sudo curl $BASE_URL/ngdissite > $DEST_PATH/ngdissite  && chmod +x $DEST_PATH/ngdissite

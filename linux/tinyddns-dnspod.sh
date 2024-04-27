@@ -1,11 +1,16 @@
 #!/bin/bash
+# tinyddns-dnspod.sh - v1.0.0
+# Copyight (c) 2024 Joseph Chris <joseph@josephcz.xyz> under MIT License
+#
+# A tiny DDNS update script for DNSPod, targeting slim environments liek Docker or OpenWRT.
+#
 
 DP_ID="<id>"
 DP_TOKEN="<token>"
-IP_CHKURL="https://ncsi.josephcz.xyz/ip.php" # The website that can return a IP address in text/plain
+IP_CHKURL="https://lty.vc/ip" # The website that can return a IP address in text/plain
 HOST="@"            # subdomain
 ZONE="example.com"  # domian
-TYPE="A"          # only A record supportted
+TYPE="A"            # only A record supportted
 
 function urlencode() {
         out=""
