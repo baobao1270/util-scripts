@@ -1,1 +1,2 @@
-@dir /A /Q %*
+@echo off
+dir /Q /A %*
