@@ -1,2 +1,12 @@
 @echo off
-codeclear.bat
+rd /s /q "%APPDATA%\Code\Cache"
+rd /s /q "%APPDATA%\Code\CachedData"
+rd /s /q "%APPDATA%\Code\CachedExtensionVSIXs"
+rd /s /q "%APPDATA%\Code\CachedProfilesData"
+rd /s /q "%APPDATA%\Code\Code Cache"
+rd /s /q "%APPDATA%\Code\Crashpad"
+rd /s /q "%APPDATA%\Code\DawnCache"
+rd /s /q "%APPDATA%\Code\GPUCache"
+rd /s /q "%APPDATA%\Code\logs"
+rd /s /q "%APPDATA%\Code\User\History"
+rd /s /q "%APPDATA%\Code\User\workspaceStorage"
