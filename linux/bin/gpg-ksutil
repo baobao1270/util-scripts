@@ -1,0 +1,42 @@
+#!/bin/bash
+# gpg-ksutil - v1.0.0
+# Copyight (c) 2024 Joseph Chris <joseph@josephcz.xyz> under MIT License
+#
+# GPG Keyserver Utility - add/delete GPG keys to/from a hockeypuck keyserver
+# Note: Work for hockeypuck keyservers (Like Ubuntu Key Server) only
+# See:  https://github.com/hockeypuck/hockeypuck/wiki/HIP-1:-Regaining-control-over-public-key-identity-with-authenticated-key-management
+#
+
+OPERATION="$1"
+KEY_ID="$2"
+KEYSERVER_URL="$3"
+
+if [[ -z "${KEY_ID}"  || -z "${KEYSERVER_URL}" ]]; then
+        >&2 echo "gpg-ksutil: GPG Keyserver Utility (for hockeypuck only)"
+        >&2 echo "    add/delete GPG keys to/from a hockeypuck keyserver"
+        >&2 echo "    Usage: $0 add|delete <keyid> <keyserver-url>"
+        exit 1
+fi
+
+if [[ "${OPERATION}" != "add" && "${OPERATION}" != "delete" ]]; then
+        >&2 echo "Unknown operation: ${OPERATION}"
+        exit 1
+fi
+
+set -eu
+
+keytext=$(mktemp)
+trap "rm -f $keytext" EXIT
+
+keysig=$(mktemp)
+trap "rm -f $keytext $keysig" EXIT
+
+gpg --export -a $KEY_ID >$keytext
+gpg --detach-sign -a <$keytext >$keysig
+
+curl -i -v \
+        --data-urlencode keytext@$keytext \
+        --data-urlencode keysig@$keysig \
+        --data-urlencode replace=true \
+        $KEYSERVER_URL/pks/$OPERATION
+
