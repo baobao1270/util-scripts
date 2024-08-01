@@ -1,0 +1,19 @@
+#!/bin/bash
+# convalac - v1.0.0
+# Copyight (c) 2024 Joseph Chris <joseph@josephcz.xyz> under MIT License
+#
+# Convert WAV & FLAC files (in current directory) to ALAC M4A container
+#
+
+function _convalac {
+    FORMAT=$1
+    for file in *.$FORMAT; do
+        if [ ! -f "$file" ]; then
+            continue
+        fi
+        ffmpeg -i "$file" -vn -c:a alac "${file%.*}.m4a"
+    done
+}
+
+_convalac wav
+_convalac flac
