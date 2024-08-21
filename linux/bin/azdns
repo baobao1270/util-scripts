@@ -1,0 +1,16 @@
+#!/bin/bash
+set -e
+ZONE=$(hostname)
+RESOURCE="az network dns record-set"
+if [ -z "$1" ]; then
+    exec $RESOURCE --help
+elif [ "$1" == "list" ]; then
+    exec $RESOURCE list --zone-name $ZONE
+else
+    if [ -z "$2" ]; then
+        exec $RESOURCE "$1" --help
+    else
+        exec $RESOURCE "$@" --zone-name $ZONE
+    fi
+fi
+
