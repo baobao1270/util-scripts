@@ -1,0 +1,16 @@
+#!/bin/bash
+set -e
+OPERATION=$1
+NSG_NAME=$(hostname)-nsg
+RESOURCE="az network nsg rule"
+COMMAND="$RESOURCE $OPERATION --nsg-name $NSG_NAME"
+
+if [ -z "$OPERATION" ]; then
+  echo "Usage: $0 <operation> [options]"
+  exec $RESOURCE --help
+fi
+
+shift
+echo $COMMAND "$@"
+exec $COMMAND "$@"
+
