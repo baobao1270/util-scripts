@@ -1,5 +1,5 @@
 #!/bin/bash
-# cfzinit.sh - v1.0.0
+# cfzinit.sh - v1.1.0
 # Copyight (c) 2024 Joseph Chris <joseph@josephcz.xyz> under MIT License
 #
 # Clondflare Zone Initialization Script
@@ -50,6 +50,10 @@ TLS_OE=false
 # TLS::TLS 1.3
 # Default: true
 TLS_13=true
+
+# TLS::ECH
+# Default: false
+TLS_ECH=false
 
 # WAF::Security Level
 # Default: essentially_off
@@ -185,6 +189,9 @@ echo -e "\n"
 
 echo -e "\033[01;33mSetting TLS Origin Mode to '$TLS'...\033[0m"
 curl $CURL_OPTS -X PATCH https://api.cloudflare.com/client/v4/zones/$ZONE_ID/settings/ssl \
+    -d '{"value":"flexible"}'
+if [ $? -ne 0 ]; then echo -e "\033[01;37;41m Error setting TLS Origin Mode \033[0m"; exit 1; fi
+curl $CURL_OPTS -X PATCH https://api.cloudflare.com/client/v4/zones/$ZONE_ID/settings/ssl \
     -d '{"value":"'$TLS'"}'
 if [ $? -ne 0 ]; then echo -e "\033[01;37;41m Error setting TLS Origin Mode \033[0m"; exit 1; fi
 echo -e "\n"
@@ -226,6 +233,13 @@ echo -e "\033[01;33mSetting TLS 1.3 to '$TLS_13'...\033[0m"
 curl $CURL_OPTS -X PATCH https://api.cloudflare.com/client/v4/zones/$ZONE_ID/settings/tls_1_3 \
     -d '{"value":"'$TLS_13'"}'
 if [ $? -ne 0 ]; then echo -e "\033[01;37;41m Error setting TLS 1.3 \033[0m"; exit 1; fi
+echo -e "\n"
+
+[ $TLS_ECH = "true" ] && TLS_ECH="on" || TLS_ECH="off"
+echo -e "\033[01;33mSetting TLS ECH to '$TLS_ECH'...\033[0m"
+curl $CURL_OPTS -X PATCH https://api.cloudflare.com/client/v4/zones/$ZONE_ID/settings/ech \
+    -d '{"value":"'$TLS_ECH'"}'
+if [ $? -ne 0 ]; then echo -e "\033[01;37;41m Error setting ECH \033[0m"; exit 1; fi
 echo -e "\n"
 
 echo -e "\033[01;33mSetting Automatic HTTPS Rewrites to '$ALWAYS_USE_HTTPS'...\033[0m"
