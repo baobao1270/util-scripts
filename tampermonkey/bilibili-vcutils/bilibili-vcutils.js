@@ -270,7 +270,8 @@ VCUtil.Entry = () => {
     const flag = VCUtil.ConfigFlags[urlInfo.type];
     if (flag.stdurl) VCUtil.URL.Standardize(urlInfo);
     if (flag.stdurlAll) VCUtil.URL.StandardizeAllUrl();
-    if (flag.stat) { VCUtil.Stat.FetchData(urlInfo.avid, urlInfo.part); }
+    if (document.querySelector('div.bili-avatar'))
+        if (flag.stat) { VCUtil.Stat.FetchData(urlInfo.avid, urlInfo.part); }
 }
 
 VCUtil.MenuCommand = {
