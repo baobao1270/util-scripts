@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         BV2AV + 视频统计
 // @description  支持 Safari | 干净 URL | 视频统计 | V 家成就
-// @version      3.1.5
+// @version      3.1.6
 // @license      MIT
 // @author       Joseph Chris <joseph@josephcz.xyz>
 // @icon         https://www.bilibili.com/favicon.ico
@@ -139,7 +139,9 @@ VCUtil.Stat = {
         }
     },
     FetchData: async function (avid, part) {
-        if (document.querySelector(VCUtil.Stat.InfoBoxClass) && document.querySelector(VCUtil.Stat.InfoBoxClass).getAttribute('data-avid') === avid.toString()) return;
+        if (!document.querySelector('div.bili-avatar')) return console.log("[B站视频统计] [Stat] Header 未完全加载，推迟 FetchData");
+        if (document.querySelector(VCUtil.Stat.InfoBoxClass)
+          && document.querySelector(VCUtil.Stat.InfoBoxClass).getAttribute('data-avid') === avid.toString()) return;
         const url = `https://api.bilibili.com/medialist/gateway/base/resource/info?rid=${avid}&type=2`;
         console.log("[B站视频统计] [Stat] FetchData:", `HTTP GET ${url}`);
         const response = await fetch(url);
@@ -270,7 +272,7 @@ VCUtil.Entry = () => {
     const flag = VCUtil.ConfigFlags[urlInfo.type];
     if (flag.stdurl) VCUtil.URL.Standardize(urlInfo);
     if (flag.stdurlAll) VCUtil.URL.StandardizeAllUrl();
-    if (flag.stat) { VCUtil.Stat.FetchData(urlInfo.avid, urlInfo.part); }
+    if (flag.stat) VCUtil.Stat.FetchData(urlInfo.avid, urlInfo.part);
 }
 
 VCUtil.MenuCommand = {
