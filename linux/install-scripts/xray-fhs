@@ -1,11 +1,11 @@
 #!/bin/bash
-# xray-fhs - v1.0.0
+# xray-fhs - v1.1.0
 # Copyight (c) 2024 Joseph Chris <joseph@josephcz.xyz> under MIT License
 #
 # The FHS (Filesystem Hierarchy Standard) install of Xray
 #
 
-[ -z "$XRAY_VERSION"  ] && XRAY_VERSION="1.8.11"
+[ -z "$XRAY_VERSION"  ] && XRAY_VERSION="24.11.5"
 [ -z "$ARCH"          ] && ARCH=64
 [ -z "$DOWNLOAD_URL"  ] && DOWNLOAD_URL="https://github.com/XTLS/Xray-core/releases/download/v${XRAY_VERSION}/Xray-linux-${ARCH}.zip"
 [ -z "$GEOIP_URL"     ] && GEOIP_URL="https://github.com/v2fly/geoip/releases/latest/download/geoip.dat"
@@ -46,7 +46,7 @@ check_installed() {
         panic "V2Ray is already installed"
     fi
     if [ -f /etc/systemd/system/xray.service ]; then
-        panic "Xray (FHS) is already installed"
+        panic "Xray systemd service is already installed"
     fi
 }
 
@@ -104,14 +104,10 @@ main() {
     install_file 755 "$tmpdir/xray/xray"           /usr/local/bin/xray
     install_file 644 "$tmpdir/geoip.dat"           /usr/local/share/xray/geoip.dat
     install_file 644 "$tmpdir/geosite.dat"         /usr/local/share/xray/geosite.dat
-    confgen_systemd  "$tmpdir"
-    confgen_base     "$tmpdir"
-    confgen_reality  "$tmpdir"
-    confgen_warp     "$tmpdir"
+    create_systemd   "$tmpdir"
+    create_config    "$tmpdir"
     install_file 644 "$tmpdir/xray.service"        /etc/systemd/system/xray.service
-    install_file 600 "$tmpdir/00-xray.toml"        /usr/local/etc/xray/00-xray.toml
-    install_file 600 "$tmpdir/10-reality.toml"     /usr/local/etc/xray/10-reality.toml
-    install_file 600 "$tmpdir/12-tail-cfwarp.toml" /usr/local/etc/xray/12-tail-cfwarp.toml
+    install_file 600 "$tmpdir/xray.yaml"           /usr/local/etc/xray/xray.yaml
 
     create_symlink /usr/local/bin/xray /usr/local/bin/v2ray
     create_symlink /usr/local/etc/xray /usr/local/etc/v2ray
@@ -120,7 +116,7 @@ main() {
 
     echo -e "\033[01;33mCleaning up temporary files...\033[0m"
     rm -rvf "$tmpdir"
-    echo -e "\033[01;33mReloading systemd daemo...\033[0m"
+    echo -e "\033[01;33mReloading systemd daemon...\033[0m"
     systemctl daemon-reload
     systemctl enable xray
     echo -e "\033[01;32mXray now is set to start on boot\033[0m"
@@ -128,10 +124,20 @@ main() {
     echo -e "\033[01;33mTo start Xray now, please run: \033[00;01;04msystemctl start xray\033[0m"
     echo -e "\033[01;33mTesting Xray configuration\033[0m"
     /usr/local/bin/xray run -confdir /usr/local/etc/xray -test
+    echo -e "\033[01;34mYou might need to install cloudflare warp and setup it:\033[0m"
+    echo -e "    \033[01;34;04mcurl https://pkg.cloudflareclient.com/pool/$(lsb_release -cs)/main/c/cloudflare-warp/cloudflare-warp_2024.6.497-1_amd64.deb -o /tmp/cloudflare-warp.deb\033[0m"
+    echo -e "    \033[01;34;04mchown -R _apt:root /tmp/cloudflare-warp.deb\033[0m"
+    echo -e "    \033[01;34;04mchmod -R 700       /tmp/cloudflare-warp.deb\033[0m"
+    echo -e "    \033[01;34;04mapt install        /tmp/cloudflare-warp.deb\033[0m"
+    echo -e "    \033[01;34;04mrm -fv             /tmp/cloudflare-warp.deb\033[0m"
+    echo -e "    \033[01;34;04mwarp-cli registration new\033[0m"
+    echo -e "    \033[01;34;04mwarp-cli mode proxy\033[0m"
+    echo -e "    \033[01;34;04mwarp-cli proxy port 1080\033[0m"
+    echo -e "    \033[01;34;04mwarp-cli connect\033[0m"
     echo -e "\033[01;32mXray has been installed successfully\033[0m"
 }
 
-confgen_systemd() {
+create_systemd() {
     tmpdir="$1"
     cat > $tmpdir/xray.service << EOF
 [Unit]
@@ -155,88 +161,78 @@ Alias=v2ray.service
 EOF
 }
 
-confgen_base() {
+create_config() {
     tmpdir="$1"
-    cat > $tmpdir/00-xray.toml << EOF
-[log]
-access = "none"
-loglevel = "info"
-
-[dns]
-servers = [
-    "https+local://1.1.1.1/dns-query",
-    "8.8.8.8"
-]
-
-[routing]
-domainStrategy = "IPIfNonMatch"
-
-[[routing.rules]]
-type        = "field"
-outboundTag = "block"
-ip          = ["geoip:private", "geoip:cn"]
-
-[[outbounds]]
-protocol = "freedom"
-tag      = "direct"
-
-[[outbounds]]
-protocol = "blackhole"
-tag      = "block"
-EOF
-}
-
-confgen_reality() {
+    public_ip=$(curl -sf --connect-timeout 5 https://1.1.1.1/cdn-cgi/trace | grep "ip=" | cut -c4- | tr -d "\n")
     x25519_priv=$(/usr/local/bin/xray x25519 | grep "Private key" | cut -d":" -f2 | tr -d " \n")
+    x25519_pub=$(/usr/local/bin/xray x25519 -i "$x25519_priv" | grep "Public key" | cut -d":" -f2 | tr -d " \n")
     user_id1=$(/usr/local/bin/xray uuid | tr -d " \n")
     user_id2=$(/usr/local/bin/xray uuid | tr -d " \n")
     short_id=$(openssl rand -hex 8 | tr -d " \n")
-    tmpdir="$1"
-    cat > $tmpdir/10-reality.toml << EOF
-[[inbounds]]
-listen   = "0.0.0.0"
-port     = 8443
-protocol = "vless"
-settings.decryption = "none"
+    echo -e "\033[01;33mGenerated configurations\033[0m"
+    echo -e "    \033[01;32mX25519 Public Key:   $x25519_pub\033[0m"
+    echo -e "    \033[01;32mUser ID 1 (REALITY): $user_id1\033[0m"
+    echo -e "    \033[01;32mUser ID 2 (CF Warp): $user_id2\033[0m"
+    echo -e "    \033[01;32mShort ID:            $short_id\033[0m"
+    echo -e "    \033[01;32mLink (REALITY):      vless://$user_id1@$public_ip:443?encryption=none&flow=xtls-rprx-vision&security=reality&sni=www.visa.com&fp=chrome&pbk=$x25519_pub&sid=$short_id&type=tcp#$(hostname)\033[0m"
+    echo -e "    \033[01;32mLink (CF Warp):      vless://$user_id2@$public_ip:443?encryption=none&flow=xtls-rprx-vision&security=reality&sni=www.visa.com&fp=chrome&pbk=$x25519_pub&sid=$short_id&type=tcp#$(hostname)\033[0m"
+    cat > $tmpdir/xray.yaml << EOF
+log:
+  loglevel: info
 
-[inbounds.streamSettings]
-network  = "tcp"
-security = "reality"
-realitySettings.privateKey  = "$x25519_priv"
-realitySettings.dest        = "www.cloudflare.com:443"
-realitySettings.serverNames = [
-    "www.cloudflare.com"
-]
-realitySettings.shortIds = ["$short_id"]
+dns:
+  servers:
+    - https+local://1.1.1.1/dns-query
+    - 1.1.1.1
+    - 1.0.0.1
 
-[[inbounds.settings.clients]]
-id    = "$user_id1"
-flow  = "xtls-rprx-vision"
-email = "reality-direct@xtls.github.io"
+outbounds:
+  - tag: pass
+    protocol: freedom
+  - tag: block
+    protocol: blackhole
+  - tag: warp
+    protocol: socks
+    settings:
+      servers:
+        - address: 127.0.0.1
+          port: 1080
 
-[[inbounds.settings.clients]]
-id    = "$user_id2"
-flow  = "xtls-rprx-vision"
-email = "warp@cloudflare.com"
-EOF
-}
+routing:
+  domainStrategy: IPIfNonMatch
+  rules:
+    - type: field
+      outboundTag: block
+      ip: ["geoip:private", "geoip:cn"]
+    - type: field
+      outboundTag: warp
+      user:
+        - warp@cloudflare.com
 
-confgen_warp() {
-    tmpdir="$1"
-    cat > $tmpdir/12-tail-cfwarp.toml << EOF
-[[routing.rules]]
-type        = "field"
-outboundTag = "warp"
-user        = ["warp@cloudflare.com"]
-
-[[outbounds]]
-protocol = "socks"
-tag      = "warp"
-settings.servers = [
-    {address = "127.0.0.1", port = 1080}
-]
+inbounds:
+  - listen: 0.0.0.0
+    port: 443
+    protocol: vless
+    settings:
+      decryption: none
+      clients:
+        - id: $user_id1
+          flow: xtls-rprx-vision
+          email: reality@xtls.github.io
+        - id: $user_id2
+          flow: xtls-rprx-vision
+          email: warp@cloudflare.com
+    streamSettings:
+      network: raw
+      security: reality
+      realitySettings:
+        privateKey: $x25519_priv
+        dest: 'www.visa.com:443'
+        serverNames:
+          - www.visa.com
+        shortIds:
+          - $short_id
 EOF
 }
 
 main
-
