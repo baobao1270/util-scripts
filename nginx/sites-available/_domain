@@ -2,7 +2,7 @@ server {
 	listen 443      ssl http2;
 	listen [::]:443 ssl http2;
 	server_name     #domain#;
-	root            /srv/web/#domain#;
+	root            /srv/web/#_domain#;
 	include         ssl_params;
 	include         ocsp_params;
 	include         hsts_params;
@@ -12,8 +12,8 @@ server {
 	ssl_certificate          /etc/ssl/private/#domain#/fullchain.pem;
 	ssl_certificate_key      /etc/ssl/private/#domain#/key.pem;
 	ssl_trusted_certificate  /etc/ssl/private/#domain#/ca.pem;
-	access_log               /var/log/nginx/#domain#-access.log main buffer=512k flush=1m;
- 	error_log                /var/log/nginx/#domain#-error.log;
+	access_log               /var/log/nginx/#_domain#-access.log main buffer=512k flush=1m;
+ 	error_log                /var/log/nginx/#_domain#-error.log;
 
 	if ($host != "#domain#") {
 		return 307 https://#domain#$request_uri;
