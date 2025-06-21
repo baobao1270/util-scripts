@@ -220,7 +220,7 @@ VCUtil.Stat = {
         infoBox.style.zIndex = "10";
         infoBox.style.paddingTop = "10px";
         Array.from(document.querySelectorAll(VCUtil.Stat.InfoBoxClass)).forEach(e => e.remove());
-        if(document.querySelector(".video-info-meta") != null) {
+        if(document.querySelector(".video-info-meta")) {
             document.querySelector(".video-info-meta").parentElement.appendChild(infoBox);
         } else {
             document.querySelector(".video-desc").parentElement.insertBefore(infoBox, document.querySelector(".video-desc"))
