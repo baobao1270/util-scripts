@@ -13,6 +13,7 @@
 // @compatible   chrome
 // @compatible   edge
 // @match        *://www.bilibili.com/video/*
+// @match        *://www.bilibili.com/festival/*
 // @match        *://www.bilibili.com/list/watchlater*
 // @match        *://www.bilibili.com/list/ml*
 // @grant        GM_registerMenuCommand
@@ -25,6 +26,7 @@
 const VCUtil = {
     ConfigFlags: {
         video:      { stdurl: true, stdurlAll: true, stat: true },
+        festival:   { stdurl: true, stdurlAll: true, stat: true },
         watchlater: { stdurl: true, stdurlAll: true, stat: true },
         medialist:  { stdurl: true, stdurlAll: true, stat: true },
         timezoneSlotsCount: 3,
@@ -70,14 +72,28 @@ VCUtil.Convert = {
 VCUtil.URL = {
     Info: function () {
         if (location.pathname.startsWith("/video/")) {
-            const videoId = window.location.pathname
-                .slice('/video/'.length)
+            const actualVideo = document.querySelector("meta[property=\"og:url\"]").content;
+            const videoId = actualVideo
+                .slice('https://www.bilibili.com/video/'.length)
                 .replace(/\/$/, '');
             const avid = videoId.startsWith('av') ? Number(videoId.slice(2)) : VCUtil.Convert.bv2av(videoId);
             const part = new URL(window.location.href).searchParams.get("p") || 1;
             return {
                 avid: avid, bvid: VCUtil.Convert.av2bv(avid), part: part, type: 'video',
                 standardUrl: `https://www.bilibili.com/video/av${avid}${part > 1 ? `?p=${part}` : ''}`
+            };
+        }
+        if (location.pathname.startsWith("/festival/")) {
+            const actualVideo = document.querySelector("#link0").value;
+            const fesName = location.pathname.slice('/festival/'.length);
+            const videoId = actualVideo
+                .slice('https://www.bilibili.com/video/'.length)
+                .replace(/\/$/, '');
+            const avid = videoId.startsWith('av') ? Number(videoId.slice(2)) : VCUtil.Convert.bv2av(videoId);
+            const part = new URL(actualVideo).searchParams.get("p") || 1;
+            return {
+                avid: avid, bvid: VCUtil.Convert.av2bv(avid), part: part, type: 'festival',
+                standardUrl: `https://www.bilibili.com/festival/${fesName}?bvid=${VCUtil.Convert.av2bv(avid)}${part > 1 ? `&p=${part}` : ''}`
             };
         }
         if (location.pathname.startsWith("/list/watchlater")) {
@@ -185,7 +201,11 @@ VCUtil.Stat = {
     UpdateLayout: function () {
         const infoBox = document.querySelector(VCUtil.Stat.InfoBoxClass);
         if (infoBox) {
-            document.querySelector(".video-info-meta").parentElement.style.paddingBottom = `${infoBox.clientHeight + 80}px`;
+            if(document.querySelector(".video-info-meta")) {
+                document.querySelector(".video-info-meta").parentElement.style.paddingBottom = `${infoBox.clientHeight + 80}px`;
+            } else {
+                document.querySelector(".video-desc").style.paddingTop = `${infoBox.clientHeight}px`;
+            }
         }
     },
 
@@ -200,7 +220,11 @@ VCUtil.Stat = {
         infoBox.style.zIndex = "10";
         infoBox.style.paddingTop = "10px";
         Array.from(document.querySelectorAll(VCUtil.Stat.InfoBoxClass)).forEach(e => e.remove());
-        document.querySelector(".video-info-meta").parentElement.appendChild(infoBox);
+        if(document.querySelector(".video-info-meta")) {
+            document.querySelector(".video-info-meta").parentElement.appendChild(infoBox);
+        } else {
+            document.querySelector(".video-desc").parentElement.insertBefore(infoBox, document.querySelector(".video-desc"))
+        }
         const builder = {
             AddText: function (text, code = false) {
                 const textBox = document.createElement("span");
