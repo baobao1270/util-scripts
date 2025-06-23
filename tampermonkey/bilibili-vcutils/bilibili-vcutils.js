@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         BV2AV + 视频统计
 // @description  支持 Safari | 干净 URL | 视频统计 | V 家成就
-// @version      3.1.6
+// @version      3.2.0
 // @license      MIT
 // @author       Joseph Chris <joseph@josephcz.xyz>
 // @icon         https://www.bilibili.com/favicon.ico
