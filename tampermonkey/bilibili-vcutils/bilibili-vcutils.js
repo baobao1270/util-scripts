@@ -20,6 +20,8 @@
 // @grant        GM_unregisterMenuCommand
 // @grant        GM_setValue
 // @grant        GM_getValue
+// @downloadURL  https://raw.githubusercontent.com/baobao1270/util-scripts/refs/heads/main/tampermonkey/bilibili-vcutils/bilibili-vcutils.js
+// @updateURL    https://raw.githubusercontent.com/baobao1270/util-scripts/refs/heads/main/tampermonkey/bilibili-vcutils/bilibili-vcutils.js
 // ==/UserScript==
 
 
