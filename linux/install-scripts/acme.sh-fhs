@@ -92,12 +92,14 @@ hooks_dir=/usr/local/etc/acme.sh/post-renew.hooks
 install -d -o root -g root -m 755 $hooks_dir
 cat << EOF >  $hooks_dir/10-reload-ngnix
 #!/bin/bash
-if [ ! command -v nginx &> /dev/null ]; then
+# Check if nginx is installed
+if ! command -v nginx &> /dev/null; then
     echo "Command 'nginx' not found. Skipping."
     exit 0
 fi
 
-if [ ! nginx -t &> /dev/null ]; then
+# Test nginx configuration
+if ! nginx -t &> /dev/null; then
     echo "Error: Failed to pass nginx configuration test."
     exit 1
 fi
