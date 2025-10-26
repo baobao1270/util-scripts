@@ -1,6 +1,6 @@
 #!/bin/bash
-# cfzinit.sh - v1.1.0
-# Copyight (c) 2024 Joseph Chris <joseph@josephcz.xyz> under MIT License
+# cfzinit.sh - v1.2.0
+# Copyight (c) 2025 Joseph Chris <joseph@josephcz.xyz> under MIT License
 #
 # Clondflare Zone Initialization Script
 #
@@ -43,7 +43,7 @@ TLS_HSTS_MAXAGE=31536000
 # Default: 1.2
 TLS_VER_MIN="1.2"
 
-# TLS::Oppurtunistic Encryption [Security Issues]
+# TLS::Opportunistic Encryption [Turned off for Security Issues]
 # Default: false
 TLS_OE=false
 
@@ -54,6 +54,10 @@ TLS_13=true
 # TLS::ECH
 # Default: false
 TLS_ECH=false
+
+# TLS::CT Monitoring
+# Default: true
+TLS_CT=true
 
 # WAF::Security Level
 # Default: essentially_off
@@ -69,11 +73,36 @@ WAF_CHALLENGE_AGE=31536000
 # Default: false
 WAF_BROWSER_INTEGRITY=false
 
+# WAF::Page Shield (Client Side Abuse)
+# Default: false
+WAF_PAGE_SHIELD=false
+
+# WAF::Leaked Credentials Detection
+# Default: true
+WAF_LEAKED_CRED=true
+
+# Bot::Managed robots.txt
+# Default: managed
+# Values: managed | unmanaged | create-placeholder
+# Note: if using "create-placeholder", Cloudflare will create the robots.txt with comments only
+# to reject all AI robots when robots.txt is missing, but this does not really # block AI robots.
+# The behavior when robots.txt is exist is not documented by Cloudflare.
+BOT_ROBOT_TXT=managed
+
+# Bot::AI Labyrinth (Crawler Protection) [Turned off for possible SEO issues]
+# Default: false
+BOT_CRAWLER_PROTECTION=false
+
+# Bot::AI Bots Protection
+# Default: only_on_ad_pages
+# Values: only_on_ad_pages | disabled | block
+BOT_AI_PROTECTION=only_on_ad_pages
+
 # Cache::Brotli
 # Default: true
 CACHE_BROTLI=true
 
-# Cache::Early Hints [Security Issues]
+# Cache::Early Hints [Turned off for Security Issues]
 # Default: false
 CACHE_EARLY_HINTS=false
 
@@ -87,18 +116,6 @@ CACHE_MINIFY_HTML=true
 CACHE_MINIFY_CSS=true
 CACHE_MINIFY_JS=true
 
-# Cache::HTTP/2 to Origin
-# Default: true
-NET_H2=true
-
-# Cache::HTTP/3 (with QUIC) (May have issues in China)
-# Default: false
-NET_H3=false
-
-# Cache::0-RTT Connection Resumption
-# Default: true
-NET_0RTT=true
-
 # Cache::Cache Level (Query String)
 # Default: aggressive
 # Values: basic      (No Query String:      Only delivers files from cache when there is no query string)
@@ -111,9 +128,25 @@ CACHE_QUERYSTRING=aggressive
 # Examples: 31536000 (1y) | 604800 (1w) | 86400 (1d) | 0 (respect origin headers)
 CACHE_TTL=0
 
-# Cache::Always Online [Privacy Issues]
+# Cache::Always Online [Turned off for Privacy Issues]
 # Default: false
 CACHE_ALWAYS_ONLINE=false
+
+# Network::HTTP/2 to Origin
+# Default: true
+NET_H2=true
+
+# Network::HTTP/3 (with QUIC) (Turned off for issues in China, Iran, Russia)
+# Default: false
+NET_H3=false
+
+# Network::0-RTT Connection Resumption
+# Default: true
+NET_0RTT=true
+
+# Network::gRPC
+# Default: true
+NETWORK_GRPC=true
 
 # Network::WebSockets
 # Default: true
@@ -127,11 +160,11 @@ NETWORK_PSEUDO_IPV4=false
 # Default: true
 NETWORK_GEO=true
 
-# Network::Network Error Logging [Privacy Issues]
+# Network::Network Error Logging [Turned off for Privacy Issues]
 # Default: false
 NETWORK_NEL=false
 
-# Network::Onion Routing [Privacy Issues]
+# Network::Onion Routing [Turned off for Legal Issues]
 # Default: false
 NETWORK_ONION=false
 
@@ -242,6 +275,12 @@ curl $CURL_OPTS -X PATCH https://api.cloudflare.com/client/v4/zones/$ZONE_ID/set
 if [ $? -ne 0 ]; then echo -e "\033[01;37;41m Error setting ECH \033[0m"; exit 1; fi
 echo -e "\n"
 
+echo -e "\033[01;33mSetting TLS CT to '$TLS_CT'...\033[0m"
+curl $CURL_OPTS -X PATCH https://api.cloudflare.com/client/v4/zones/$ZONE_ID/ct/alerting \
+    -d '{"enabled":'$TLS_CT'}'
+if [ $? -ne 0 ]; then echo -e "\033[01;37;41m Error setting TLS CT \033[0m"; exit 1; fi
+echo -e "\n"
+
 echo -e "\033[01;33mSetting Automatic HTTPS Rewrites to '$ALWAYS_USE_HTTPS'...\033[0m"
 curl $CURL_OPTS -X PATCH https://api.cloudflare.com/client/v4/zones/$ZONE_ID/settings/automatic_https_rewrites \
     -d '{"value":"'$ALWAYS_USE_HTTPS'"}'
@@ -265,6 +304,45 @@ echo -e "\033[01;33mSetting Browser Integrity Check to '$WAF_BROWSER_INTEGRITY'.
 curl $CURL_OPTS -X PATCH https://api.cloudflare.com/client/v4/zones/$ZONE_ID/settings/browser_check \
     -d '{"value":"'$WAF_BROWSER_INTEGRITY'"}'
 if [ $? -ne 0 ]; then echo -e "\033[01;37;41m Error setting Browser Integrity Check \033[0m"; exit 1; fi
+echo -e "\n"
+
+echo -e "\033[01;33mSetting Page Shield to '$WAF_PAGE_SHIELD'...\033[0m"
+curl $CURL_OPTS -X PUT https://api.cloudflare.com/client/v4/zones/$ZONE_ID/page_shield \
+    -d '{"enabled":'$WAF_PAGE_SHIELD'}'
+if [ $? -ne 0 ]; then echo -e "\033[01;37;41m Error setting Page Shield \033[0m"; exit 1; fi
+echo -e "\n"
+
+echo -e "\033[01;33mSetting Leaked Credentials Detection to '$WAF_LEAKED_CRED'...\033[0m"
+curl $CURL_OPTS -X POST https://api.cloudflare.com/client/v4/zones/$ZONE_ID/leaked-credential-checks \
+    -d '{"enabled":'$WAF_LEAKED_CRED'}'
+if [ $? -ne 0 ]; then echo -e "\033[01;37;41m Error setting Leaked Credentials Detection \033[0m"; exit 1; fi
+echo -e "\n"
+
+if   [ "$BOT_ROBOT_TXT" = "managed" ]; then
+        BOT__is_robots_txt_managed=true
+        BOT__cf_robots_variant=off # wtf? why cloudflare use 'off' as null?
+elif [ "$BOT_ROBOT_TXT" = "unmanaged" ]; then
+        BOT__is_robots_txt_managed=false
+        BOT__cf_robots_variant=off
+elif [ "$BOT_ROBOT_TXT" = "create-placeholder" ]; then
+        BOT__is_robots_txt_managed=false
+        BOT__cf_robots_variant=policy_only
+else
+    echo -e "\033[01;37;41m Error setting Managed robots.txt: value is not one of the chooses.\033[0m"
+    exit 1
+fi
+[ $BOT_CRAWLER_PROTECTION = "true" ] && BOT__crawler_protection="enabled" || BOT__crawler_protection="disabled"
+BOT__ai_bots_protection="$BOT_AI_PROTECTION"
+BOT_MANAGEMENT_PAYLOAD='{
+"is_robots_txt_managed":'$BOT__is_robots_txt_managed',
+"cf_robots_variant":"'$BOT__cf_robots_variant'",
+"crawler_protection":"'$BOT__crawler_protection'",
+"ai_bots_protection":"'$BOT__ai_bots_protection'"
+}'
+echo -e "\033[01;33mSetting AI/Bot Management to '$BOT_MANAGEMENT_PAYLOAD'...\033[0m"
+curl $CURL_OPTS -X PUT https://api.cloudflare.com/client/v4/zones/$ZONE_ID/bot_management \
+    -d "$BOT_MANAGEMENT_PAYLOAD"
+if [ $? -ne 0 ]; then echo -e "\033[01;37;41m Error setting AI/Bot Management \033[0m"; exit 1; fi
 echo -e "\n"
 
 [ $CACHE_BROTLI = "true" ] && CACHE_BROTLI="on" || CACHE_BROTLI="off"
@@ -298,6 +376,25 @@ curl $CURL_OPTS -X PATCH https://api.cloudflare.com/client/v4/zones/$ZONE_ID/set
 if [ $? -ne 0 ]; then echo -e "\033[01;37;41m Error setting Auto Minify \033[0m"; exit 1; fi
 echo -e "\n"
 
+echo -e "\033[01;33mSetting Cache Level (Query String) to '$CACHE_QUERYSTRING'...\033[0m"
+curl $CURL_OPTS -X PATCH https://api.cloudflare.com/client/v4/zones/$ZONE_ID/settings/cache_level \
+    -d '{"value":"'$CACHE_QUERYSTRING'"}'
+if [ $? -ne 0 ]; then echo -e "\033[01;37;41m Error setting Cache Level (Query String) \033[0m"; exit 1; fi
+echo -e "\n"
+
+echo -e "\033[01;33mSetting Browser Cache TTL to '$CACHE_TTL'...\033[0m"
+curl $CURL_OPTS -X PATCH https://api.cloudflare.com/client/v4/zones/$ZONE_ID/settings/browser_cache_ttl \
+    -d '{"value":'$CACHE_TTL'}'
+if [ $? -ne 0 ]; then echo -e "\033[01;37;41m Error setting Browser Cache TTL \033[0m"; exit 1; fi
+echo -e "\n"
+
+[ $CACHE_ALWAYS_ONLINE = "true" ] && CACHE_ALWAYS_ONLINE="on" || CACHE_ALWAYS_ONLINE="off"
+echo -e "\033[01;33mSetting Always Online to '$CACHE_ALWAYS_ONLINE'...\033[0m"
+curl $CURL_OPTS -X PATCH https://api.cloudflare.com/client/v4/zones/$ZONE_ID/settings/always_online \
+    -d '{"value":"'$CACHE_ALWAYS_ONLINE'"}'
+if [ $? -ne 0 ]; then echo -e "\033[01;37;41m Error setting Always Online \033[0m"; exit 1; fi
+echo -e "\n"
+
 [ $NET_H2 = "true" ] && MAX_ORIGIN_HTTP=2 || MAX_ORIGIN_HTTP=1
 echo -e "\033[01;33mSetting Maximum Origin HTTP Version to '$MAX_ORIGIN_HTTP'...\033[0m"
 curl $CURL_OPTS -X PATCH https://api.cloudflare.com/client/v4/zones/$ZONE_ID/settings/origin_max_http_version \
@@ -319,23 +416,10 @@ curl $CURL_OPTS -X PATCH https://api.cloudflare.com/client/v4/zones/$ZONE_ID/set
 if [ $? -ne 0 ]; then echo -e "\033[01;37;41m Error setting 0-RTT Connection Resumption \033[0m"; exit 1; fi
 echo -e "\n"
 
-echo -e "\033[01;33mSetting Cache Level (Query String) to '$CACHE_QUERYSTRING'...\033[0m"
-curl $CURL_OPTS -X PATCH https://api.cloudflare.com/client/v4/zones/$ZONE_ID/settings/cache_level \
-    -d '{"value":"'$CACHE_QUERYSTRING'"}'
-if [ $? -ne 0 ]; then echo -e "\033[01;37;41m Error setting Cache Level (Query String) \033[0m"; exit 1; fi
-echo -e "\n"
-
-echo -e "\033[01;33mSetting Browser Cache TTL to '$CACHE_TTL'...\033[0m"
-curl $CURL_OPTS -X PATCH https://api.cloudflare.com/client/v4/zones/$ZONE_ID/settings/browser_cache_ttl \
-    -d '{"value":'$CACHE_TTL'}'
-if [ $? -ne 0 ]; then echo -e "\033[01;37;41m Error setting Browser Cache TTL \033[0m"; exit 1; fi
-echo -e "\n"
-
-[ $CACHE_ALWAYS_ONLINE = "true" ] && CACHE_ALWAYS_ONLINE="on" || CACHE_ALWAYS_ONLINE="off"
-echo -e "\033[01;33mSetting Always Online to '$CACHE_ALWAYS_ONLINE'...\033[0m"
-curl $CURL_OPTS -X PATCH https://api.cloudflare.com/client/v4/zones/$ZONE_ID/settings/always_online \
-    -d '{"value":"'$CACHE_ALWAYS_ONLINE'"}'
-if [ $? -ne 0 ]; then echo -e "\033[01;37;41m Error setting Always Online \033[0m"; exit 1; fi
+echo -e "\033[01;33mSetting gRPC to '$NETWORK_GRPC'...\033[0m"
+curl $CURL_OPTS -X POST https://api.cloudflare.com/client/v4/zones/$ZONE_ID/flags/products/protocols/changes \
+    -d '{"feature":"gRPC", "value":'$NETWORK_GRPC'}'
+if [ $? -ne 0 ]; then echo -e "\033[01;37;41m Error setting gRPC \033[0m"; exit 1; fi
 echo -e "\n"
 
 [ $NETWORK_WS = "true" ] && NETWORK_WS="on" || NETWORK_WS="off"
@@ -372,8 +456,6 @@ curl $CURL_OPTS -X PATCH https://api.cloudflare.com/client/v4/zones/$ZONE_ID/set
 if [ $? -ne 0 ]; then echo -e "\033[01;37;41m Error setting Onion Routing \033[0m"; exit 1; fi
 echo -e "\n"
 
+echo -e "Domain: \033[01;32;04m$DOMAIN\033[0m"
+echo -e "URL:    \033[01;32;04mhttps://dash.cloudflare.com/$ACCOUNT_ID/$DOMAIN/ssl-tls/edge-certificates\033[0m"
 echo -e "Finished."
-echo -e "You need to enable CT monitoring manually at:"
-echo -e "\t\033[01;32;04mhttps://dash.cloudflare.com/$ACCOUNT_ID/$DOMAIN/ssl-tls/edge-certificates\033[0m"
-echo -e "You can also enable gRPC manually at:"
-echo -e "\t\033[01;32;04mhttps://dash.cloudflare.com/$ACCOUNT_ID/$DOMAIN/network\033[0m"
