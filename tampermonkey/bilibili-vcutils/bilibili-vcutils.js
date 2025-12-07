@@ -157,7 +157,7 @@ VCUtil.Stat = {
         }
     },
     FetchData: async function (avid, part) {
-        if (!document.querySelector('div.bili-avatar')) return console.log("[B站视频统计] [Stat] Header 未完全加载，推迟 FetchData");
+        if (!document.querySelector('div.bili-avatar') && !document.querySelector('div.header-login-entry')) return console.log("[B站视频统计] [Stat] Header 未完全加载，推迟 FetchData");
         if (document.querySelector(VCUtil.Stat.InfoBoxClass)
           && document.querySelector(VCUtil.Stat.InfoBoxClass).getAttribute('data-avid') === avid.toString()) return;
         const url = `https://api.bilibili.com/x/web-interface/view?aid=${avid}`;
