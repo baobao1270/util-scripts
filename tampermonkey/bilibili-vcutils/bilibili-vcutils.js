@@ -180,7 +180,7 @@ VCUtil.Stat = {
             .AddText(tidVersion != "v1" ? ((tidVersion === "all" ? "v2：" : "") + (tidShow ? `${data.tname_v2}（${data.tid_v2}）` : data.tname_v2)) : "")
             .AddText(`av${avid}`, true)
             .AddText(VCUtil.Convert.av2bv(avid), true)
-            .AddText(`cid=${data.pages[part - 1].id}`, true)
+            .AddText(`cid=${data.pages[part - 1].cid}`, true)
             .AddText((data.tid === 30) ? format.VocaloidAchievement(data.stat.view) : format.VocaloidAchievement(data.stat.view)+"（非 VU 区视频）")
             .AddLineBreak();
 
