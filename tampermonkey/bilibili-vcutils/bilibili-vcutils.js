@@ -176,12 +176,9 @@ VCUtil.Stat = {
         const block = VCUtil.Stat
             .BuildInfoBox(avid)
             .AddText(`${format.HumanReadableNumber(data.stat.view)} 播放    `)
-            .AddText(tidVersion != "v2" ? ((tidVersion === "all" ? "v1：" : "") + (tidShow ? `${data.tname}（${data.tid}）` : data.tname)) : "")
-            .AddText(tidVersion != "v1" ? ((tidVersion === "all" ? "v2：" : "") + (tidShow ? `${data.tname_v2}（${data.tid_v2}）` : data.tname_v2)) : "")
             .AddText(`av${avid}`, true)
             .AddText(VCUtil.Convert.av2bv(avid), true)
             .AddText(`cid=${data.pages[part - 1].cid}`, true)
-            .AddText((data.tid === 30) ? format.VocaloidAchievement(data.stat.view) : format.VocaloidAchievement(data.stat.view)+"（非 VU 区视频）")
             .AddLineBreak();
 
         block.AddText('发布');
@@ -189,7 +186,13 @@ VCUtil.Stat = {
         block.AddLineBreak();
         block.AddText('投稿');
         VCUtil.Stat.FormatTimezoneSlots(block, data.ctime);
-        block.AddLineBreak();
+        block
+            .AddLineBreak()
+            .AddText('分区')
+            .AddText(tidVersion != "v2" ? ((tidVersion === "all" ? "v1 " : "") + (tidShow ? `${data.tname}（${data.tid}）` : data.tname)) : "")
+            .AddText(tidVersion != "v1" ? ((tidVersion === "all" ? "v2 " : "") + (tidShow ? `${data.tname_v2}（${data.tid_v2}）` : data.tname_v2)) : "")
+            .AddText((data.tid === 30) ? format.VocaloidAchievement(data.stat.view) : format.VocaloidAchievement(data.stat.view)+"（非 VU 区视频）")
+            .AddLineBreak();
 
         if (data.tid === 30) {
             block.AddLink('TDD',`https://tdd.bunnyxt.com/video/av${avid}`)
