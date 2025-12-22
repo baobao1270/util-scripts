@@ -1,5 +1,5 @@
 #!/bin/bash
-# server-info.sh - v1.3.4
+# server-info.sh - v1.3.5
 # Copyight (c) 2024 Joseph Chris <joseph@josephcz.xyz> under MIT License
 #
 # A script to gather server information and display it as a banner.
@@ -30,6 +30,13 @@ elif [ "$IP_SOURCE" = "env" ]; then
 else
 	IP=$(curl -sf --connect-timeout 5 https://1.1.1.1/cdn-cgi/trace | grep "ip=" | cut -c4-)
 fi
+if command -v hostname >/dev/null 2>&1; then
+	HOSTNAME=$(hostname -f)
+elif [ -f /etc/hostname ]; then
+	HOSTNAME=$(cat /etc/hostname)
+else
+	HOSTNAME=
+fi
 CPU=$(lscpu | grep "^Model name" | head -1 | cut -d":" -f2 | xargs)
 NCPU=$(lscpu | grep "^CPU(s):" | head -1 | cut -d":" -f2 | xargs)
 
@@ -46,5 +53,5 @@ else
 	echo "  Uptime:        " `uptime -p | cut -c4-`
 fi
 echo "  Public IP:     " "$IP"
-echo "  Hostname:      " `[ -f /etc/hostname ] && cat /etc/hostname`
+echo "  Hostname:      " "$HOSTNAME"
 echo ""
