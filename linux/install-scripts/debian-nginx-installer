@@ -1,0 +1,34 @@
+#!/bin/bash
+# debian-nginx-installer - v1.0.0
+# Copyight (c) 2025 Joseph Chris <joseph@josephcz.xyz> under MIT License
+#
+# Copy available at lty.vc/ngxdebinst
+#
+# Install nginx (full version) on Debian 12/13, configure with
+# [github.com/baobao1270/util-scripts]'s edition of configuration,
+# with common SSL, OCSP, SNI multi-domain, and management util scripts.
+#
+
+set -e
+
+if command -v nginx >/dev/null 2>&1; then
+    echo "Nginx is installed. Exit."
+    exit 2
+fi
+
+apt-get install -y nginx-full
+rm -rf /tmp/github.com-baobao1270-util-scripts
+git clone https://github.com/baobao1270/util-scripts /tmp/github.com-baobao1270-util-scripts
+rm -rvf /etc/nginx/sites-available
+mv -v   /tmp/github.com-baobao1270-util-scripts/nginx/* /etc/nginx
+cd /etc/nginx
+sed  -i '/^#/d'               /etc/nginx/nginx.conf
+sed  -i '/http {/,/}/d;/^$/d' /etc/nginx/nginx.conf
+cat <<EOF >> /etc/nginx/nginx.conf
+http {
+	include /etc/nginx/http.conf;
+	include /etc/nginx/sites-enabled/*;
+}
+EOF
+curl https://ssl-config.mozilla.org/ffdhe2048.txt > /etc/ssl/dhparam
+curl -L lty.vc/ngxcmd | bash -s update
