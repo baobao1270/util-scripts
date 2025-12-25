@@ -1,8 +1,8 @@
 #!/bin/bash
-# debian-nginx-installer - v1.0.0
+# debian-nginx-inst - v1.0.0
 # Copyight (c) 2025 Joseph Chris <joseph@josephcz.xyz> under MIT License
 #
-# Copy available at lty.vc/ngxdebinst
+# Copy available at lty.vc/debian-nginx-inst
 #
 # Install nginx (full version) on Debian 12/13, configure with
 # [github.com/baobao1270/util-scripts]'s edition of configuration,

@@ -1,5 +1,5 @@
 #!/bin/bash
-# google-ca-acme.sh - v1.0.0
+# google-ca-acme.sh - v1.1.0
 # Copyight (c) 2024 Joseph Chris <joseph@josephcz.xyz> under MIT License
 #
 # A utility to use Google Trust Service Public CA with ACME clients
