@@ -1,0 +1,12 @@
+{
+	"folders": [
+		{
+			"name": "project: util-scripts",
+			"path": "."
+		},
+		{
+			"name": "project: api-service",
+			"path": "../api-service"
+		},
+	]
+}
