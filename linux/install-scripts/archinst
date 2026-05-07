@@ -1,5 +1,5 @@
 #!/bin/bash
-# archinst - v1.3.9
+# archinst - v1.3.10
 # Copyight (c) 2024 Joseph Chris <joseph@josephcz.xyz> under MIT License
 #
 # Simple Arch Linux installation script
@@ -170,6 +170,10 @@ initramfs_modules="dm-raid dm_integrity raid0 raid1 raid10 raid456"
 sed -i "s/^HOOKS=(.*)/HOOKS=($initramfs_hooks)/g"       /mnt/etc/mkinitcpio.conf
 sed -i "s/^MODULES=(.*)/MODULES=($initramfs_modules)/g" /mnt/etc/mkinitcpio.conf
 while read -r dm_tabline;do
+	if [[ -z "$dm_tabline" || "$dm_tabline" == *"No devices found"* ]]; then
+		echo "Skipping crypttab setup as 'dmsetup table --target crypt' output is '$dm_tabline'"
+		continue
+	fi
 	dm_dev_name=$(echo "$dm_tabline" | cut -d":" -f1)
 	dm_dev_uuid=$(echo "$dm_tabline" | cut -d" " -f6 | cut -d":" -f5)
 	echo -e "$dm_dev_name\t$dm_dev_uuid" >> /mnt/etc/crypttab
