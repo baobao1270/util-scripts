@@ -1,6 +1,6 @@
 #!/bin/bash
-# cfzinit.sh - v1.2.0
-# Copyight (c) 2025 Joseph Chris <joseph@josephcz.xyz> under MIT License
+# cfzinit.sh - v1.4.0
+# Copyight (c) 2026 Joseph Chris <joseph@josephcz.xyz> under MIT License
 #
 # Clondflare Zone Initialization Script
 #
@@ -19,9 +19,22 @@ DNSSEC=true
 # Values: flexible | full | strict
 TLS=strict
 
-# TLS::Recommender
+# TLS::Automatic Mode
+# Default: false
+# Automatically selects and updates the origin TLS mode when enabled.
+TLS_AUTOMATIC=false
+
+# TLS::Origin Automatic Key Exchange
 # Default: true
-TLS_RECOMMENDER=true
+TLS_ORIGIN_AUTO_KEX=true
+
+# TLS::Origin FIPS Compliance
+# Default: true
+TLS_ORIGIN_FIPS=true
+
+# TLS::Origin Post-Quantum Encryption
+# Default: true
+TLS_ORIGIN_PQE=true
 
 # TLS::CA
 TLS_CA=google
@@ -229,10 +242,32 @@ curl $CURL_OPTS -X PATCH https://api.cloudflare.com/client/v4/zones/$ZONE_ID/set
 if [ $? -ne 0 ]; then echo -e "\033[01;37;41m Error setting TLS Origin Mode \033[0m"; exit 1; fi
 echo -e "\n"
 
-echo -e "\033[01;33mSetting TLS Recommender to '$TLS_RECOMMENDER'...\033[0m"
-curl $CURL_OPTS -X PATCH https://api.cloudflare.com/client/v4/zones/$ZONE_ID/settings/ssl_recommender \
-    -d '{"enabled":'$TLS_RECOMMENDER'}'
-if [ $? -ne 0 ]; then echo -e "\033[01;37;41m Error setting TLS Recommender \033[0m"; exit 1; fi
+[ "$TLS_AUTOMATIC" = "true" ] && TLS_AUTOMATIC_MODE="auto" || TLS_AUTOMATIC_MODE="custom"
+echo -e "\033[01;33mSetting Automatic SSL/TLS to '$TLS_AUTOMATIC_MODE'...\033[0m"
+curl $CURL_OPTS -X PATCH https://api.cloudflare.com/client/v4/zones/$ZONE_ID/settings/ssl_automatic_mode \
+    -d '{"value":"'"$TLS_AUTOMATIC_MODE"'"}'
+if [ $? -ne 0 ]; then echo -e "\033[01;37;41m Error setting Automatic SSL/TLS \033[0m"; exit 1; fi
+echo -e "\n"
+
+if [ "$TLS_ORIGIN_FIPS" = "true" ] && [ "$TLS_ORIGIN_PQE" = "true" ]; then
+    TLS_ORIGIN_COMPLIANCE_MODES='["fips","pqh"]'
+elif [ "$TLS_ORIGIN_FIPS" = "true" ]; then
+    TLS_ORIGIN_COMPLIANCE_MODES='["fips"]'
+elif [ "$TLS_ORIGIN_PQE" = "true" ]; then
+    TLS_ORIGIN_COMPLIANCE_MODES='["pqh"]'
+else
+    TLS_ORIGIN_COMPLIANCE_MODES='[]'
+fi
+echo -e "\033[01;33mSetting Origin TLS Compliance Modes to '$TLS_ORIGIN_COMPLIANCE_MODES'...\033[0m"
+curl $CURL_OPTS -X PATCH https://api.cloudflare.com/client/v4/zones/$ZONE_ID/settings/origin_tls_compliance_modes \
+    -d '{"value":'"$TLS_ORIGIN_COMPLIANCE_MODES"'}'
+if [ $? -ne 0 ]; then echo -e "\033[01;37;41m Error setting Origin TLS Compliance Modes \033[0m"; exit 1; fi
+echo -e "\n"
+
+echo -e "\033[01;33mSetting Origin Automatic Key Exchange to '$TLS_ORIGIN_AUTO_KEX'...\033[0m"
+curl $CURL_OPTS -X PATCH https://api.cloudflare.com/client/v4/zones/$ZONE_ID/settings/auto_origin_tls_kex \
+    -d '{"enabled":'"$TLS_ORIGIN_AUTO_KEX"'}'
+if [ $? -ne 0 ]; then echo -e "\033[01;37;41m Error setting Origin Automatic Key Exchange \033[0m"; exit 1; fi
 echo -e "\n"
 
 [ $TLS_REDIRECT = "true" ] && ALWAYS_USE_HTTPS="on" || ALWAYS_USE_HTTPS="off"
