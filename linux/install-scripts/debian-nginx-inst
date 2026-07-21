@@ -11,12 +11,51 @@
 
 set -e
 
+check_nginx_config_pristine() {
+    if [ ! -e /etc/nginx ]; then
+        return 0
+    fi
+
+    if ! dpkg -S /etc/nginx >/dev/null 2>&1; then
+        cat >&2 <<EOF
+Error: /etc/nginx is not owned by any installed package.
+Please inspect and back up your NGINX configuration, then remove NGINX completely with:
+    apt autoremove --purge nginx nginx-common nginx-full
+After that, run this script again.
+EOF
+        exit 1
+    fi
+
+    if dpkg -V | awk '$0 ~ / \/etc\/nginx(\/|$)/ { found = 1; print } END { exit !found }' >&2; then
+        cat >&2 <<EOF
+Error: /etc/nginx contains files modified or deleted from the package defaults.
+Please inspect and back up your NGINX configuration, then remove NGINX completely with:
+    apt autoremove --purge nginx nginx-common nginx-full
+After that, run this script again.
+EOF
+        exit 1
+    fi
+
+    unowned_entries="$(find /etc/nginx -mindepth 1 -print -exec dpkg -S {} \; 2>&1 >/dev/null | sed -n 's/^dpkg-query: no path found matching pattern //p')"
+    if [ -n "$unowned_entries" ]; then
+        cat >&2 <<EOF
+Error: /etc/nginx contains files not owned by installed packages:
+$unowned_entries
+Please inspect and back up your NGINX configuration, then remove NGINX completely with:
+    apt autoremove --purge nginx nginx-common nginx-full
+After that, run this script again.
+EOF
+        exit 1
+    fi
+}
+
 if command -v nginx >/dev/null 2>&1; then
-    echo "Nginx is installed. Exit."
-    exit 2
+    echo "Nginx is installed. Checking /etc/nginx against package defaults."
+else
+    apt-get install -y nginx-full
 fi
 
-apt-get install -y nginx-full
+check_nginx_config_pristine
 rm -rf /tmp/github.com-baobao1270-util-scripts
 git clone https://github.com/baobao1270/util-scripts /tmp/github.com-baobao1270-util-scripts
 rm -rvf /etc/nginx/sites-available

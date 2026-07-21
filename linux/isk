@@ -9,4 +9,11 @@
 #
 
 mkdir -p ~/.ssh
-curl https://lty.vc/sshkey >> ~/.ssh/authorized_keys
+tmpfile=$(mktemp)
+if ! curl -fsSL https://lty.vc/sshkey -o "$tmpfile"; then
+    echo "Error: failed to download SSH key." >&2
+    rm -f "$tmpfile"
+    exit 1
+fi
+cat "$tmpfile" >> ~/.ssh/authorized_keys
+rm -f "$tmpfile"

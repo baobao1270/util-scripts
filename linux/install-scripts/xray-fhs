@@ -5,21 +5,43 @@
 # The FHS (Filesystem Hierarchy Standard) install of Xray
 #
 
-[ -z "$XRAY_VERSION"  ] && XRAY_VERSION="24.11.5"
-[ -z "$ARCH"          ] && ARCH=64
-[ -z "$DOWNLOAD_URL"  ] && DOWNLOAD_URL="https://github.com/XTLS/Xray-core/releases/download/v${XRAY_VERSION}/Xray-linux-${ARCH}.zip"
-[ -z "$GEOIP_URL"     ] && GEOIP_URL="https://github.com/v2fly/geoip/releases/latest/download/geoip.dat"
-[ -z "$GEOSITE_URL"   ] && GEOSITE_URL="https://github.com/v2fly/domain-list-community/releases/latest/download/dlc.dat"
-[ -z "$AES256_PASSWD" ] && AES256_PASSWD=""
+set -e
 
 panic() {
     echo -e "\033[01;31mError: $1\033[0m" 1>&2
     exit 1
 }
 
+get_latest_xray_version() {
+    latest_url="$(mirror_url https://api.github.com/repos/XTLS/Xray-core/releases/latest)"
+    version=$(curl -fsSL "$latest_url" | jq -r '.tag_name | sub("^v"; "")') || panic "Failed to resolve latest Xray version"
+    [ -n "$version" ] || panic "Failed to resolve latest Xray version"
+    [ "$version" != "null" ] || panic "Failed to resolve latest Xray version"
+    echo "$version"
+}
+
+mirror_url() {
+    url="$1"
+    if [ -z "${GHMIRROR:-}" ]; then
+        echo "$url"
+    else
+        echo "${GHMIRROR%/}/$url"
+    fi
+}
+
+set_defaults() {
+    [ -z "${GHMIRROR:-}"      ] && GHMIRROR=""
+    [ -z "${XRAY_VERSION:-}"  ] && XRAY_VERSION="$(get_latest_xray_version)"
+    [ -z "${ARCH:-}"          ] && ARCH=64
+    [ -z "${DOWNLOAD_URL:-}"  ] && DOWNLOAD_URL="$(mirror_url "https://github.com/XTLS/Xray-core/releases/download/v${XRAY_VERSION}/Xray-linux-${ARCH}.zip")"
+    [ -z "${GEOIP_URL:-}"     ] && GEOIP_URL="$(mirror_url https://github.com/v2fly/geoip/releases/latest/download/geoip.dat)"
+    [ -z "${GEOSITE_URL:-}"   ] && GEOSITE_URL="$(mirror_url https://github.com/v2fly/domain-list-community/releases/latest/download/dlc.dat)"
+    [ -z "${AES256_PASSWD:-}" ] && AES256_PASSWD=""
+}
+
 check_command() {
     echo -e "\033[01mChecking command: \033[01;04m$1\033[0m"
-    if ! command -v $1 &> /dev/null; then
+    if ! command -v "$1" &> /dev/null; then
         panic "$1 could not be found"
     fi
 }
@@ -32,6 +54,7 @@ check_installed() {
         printable_aes256_passwd="[REDACTED]"
     fi
     echo -e "\033[01;33mConfigurations\033[0m"
+    echo -e "    \033[01mGHMIRROR\033[0m:      $GHMIRROR"
     echo -e "    \033[01mXRAY_VERSION\033[0m:  $XRAY_VERSION"
     echo -e "    \033[01mARCH\033[0m:          $ARCH"
     echo -e "    \033[01mDOWNLOAD_URL\033[0m:  $DOWNLOAD_URL"
@@ -56,16 +79,14 @@ download() {
     dist_cipher="$dist.enc"
     dist_plaintext="$dist"
     echo -e "\033[01mDownloading: \033[01;04m$url\033[0m"
-    curl -L -q --retry 5 --retry-delay 10 --retry-max-time 60 -o "$dist_cipher" "$url"
-    [ $? -eq 0 ] || panic "Download failed: $url"
+    curl -fL -q --retry 5 --retry-delay 10 --retry-max-time 60 -o "$dist_cipher" "$url" || panic "Download failed: $url"
     if [ -z "$AES256_PASSWD" ]; then
         # No password, just use the downloaded file
         mv "$dist_cipher" "$dist"
     else
         echo -e "\033[01mDecrypting: \033[01;04m$dist_cipher\033[0m"
         # encrypt with: openssl enc -aes-256-cbc -pbkdf2 -in <infile> -out <outfile> -k <password>
-        openssl aes-256-cbc -d -pbkdf2 -in "$dist_cipher" -out "$dist_plaintext" -k "$AES256_PASSWD"
-        [ $? -eq 0 ] || panic "Decrypt failed: $dist_cipher"
+        openssl aes-256-cbc -d -pbkdf2 -in "$dist_cipher" -out "$dist_plaintext" -k "$AES256_PASSWD" || panic "Decrypt failed: $dist_cipher"
     fi
 }
 
@@ -74,7 +95,7 @@ install_file() {
     src="$2"
     dst="$3"
     echo -e "\033[01mInstalling: \033[01;04m$dst\033[0m"
-    install -Dm $mode "$src" "$dst"
+    install -Dm "$mode" "$src" "$dst"
 }
 
 create_symlink() {
@@ -85,21 +106,20 @@ create_symlink() {
 }
 
 main() {
-    [ $UID -eq 0 ] || panic "Please run as root"
-    check_installed
+    [ "$UID" -eq 0 ] || panic "Please run as root"
     check_command curl
+    check_command jq
     check_command unzip
     check_command install
     check_command openssl
+    set_defaults
+    check_installed
 
     tmpdir=$(mktemp -d)
     download     "$DOWNLOAD_URL" "$tmpdir/xray.zip"
     download     "$GEOIP_URL"    "$tmpdir/geoip.dat"
     download     "$GEOSITE_URL"  "$tmpdir/geosite.dat"
-    unzip    -q  "$tmpdir/xray.zip" -d "$tmpdir/xray"
-    if [ $? -ne 0 ]; then
-        panic "Failed to extract Xray"
-    fi
+    unzip    -q  "$tmpdir/xray.zip" -d "$tmpdir/xray" || panic "Failed to extract Xray"
 
     install_file 755 "$tmpdir/xray/xray"           /usr/local/bin/xray
     install_file 644 "$tmpdir/geoip.dat"           /usr/local/share/xray/geoip.dat
@@ -108,6 +128,7 @@ main() {
     create_config    "$tmpdir"
     install_file 644 "$tmpdir/xray.service"        /etc/systemd/system/xray.service
     install_file 600 "$tmpdir/xray.yaml"           /usr/local/etc/xray/xray.yaml
+    install_file 600 "$tmpdir/fhs-autoinstall-config.urls" /usr/local/etc/xray/fhs-autoinstall-config.urls
 
     create_symlink /usr/local/bin/xray /usr/local/bin/v2ray
     create_symlink /usr/local/etc/xray /usr/local/etc/v2ray
@@ -139,7 +160,7 @@ main() {
 
 create_systemd() {
     tmpdir="$1"
-    cat > $tmpdir/xray.service << EOF
+    cat > "$tmpdir/xray.service" << EOF
 [Unit]
 Description=A unified platform for anti-censorship
 Documentation=https://github.com/XTLS/Xray-core
@@ -163,20 +184,35 @@ EOF
 
 create_config() {
     tmpdir="$1"
-    public_ip=$(curl -sf --connect-timeout 5 https://1.1.1.1/cdn-cgi/trace | grep "ip=" | cut -c4- | tr -d "\n")
-    x25519_priv=$(/usr/local/bin/xray x25519 | grep "Private key" | cut -d":" -f2 | tr -d " \n")
-    x25519_pub=$(/usr/local/bin/xray x25519 -i "$x25519_priv" | grep "Public key" | cut -d":" -f2 | tr -d " \n")
-    user_id1=$(/usr/local/bin/xray uuid | tr -d " \n")
-    user_id2=$(/usr/local/bin/xray uuid | tr -d " \n")
-    short_id=$(openssl rand -hex 8 | tr -d " \n")
+    public_ip_trace=$(curl -sf --connect-timeout 5 https://1.1.1.1/cdn-cgi/trace) || panic "Failed to get public IP"
+    public_ip=$(printf "%s\n" "$public_ip_trace" | awk -F= '$1 == "ip" { print $2; exit }' | tr -d "\n")
+    [ -n "$public_ip" ] || panic "Failed to parse public IP"
+    x25519_output=$(/usr/local/bin/xray x25519) || panic "Failed to generate X25519 private key"
+    x25519_priv=$(printf "%s\n" "$x25519_output" | awk -F: '$1 == "Private key" { gsub(/[[:space:]]/, "", $2); print $2; exit }')
+    [ -n "$x25519_priv" ] || panic "Failed to parse X25519 private key"
+    x25519_pub_output=$(/usr/local/bin/xray x25519 -i "$x25519_priv") || panic "Failed to derive X25519 public key"
+    x25519_pub=$(printf "%s\n" "$x25519_pub_output" | awk -F: '$1 == "Public key" { gsub(/[[:space:]]/, "", $2); print $2; exit }')
+    [ -n "$x25519_pub" ] || panic "Failed to parse X25519 public key"
+    user_id1=$(/usr/local/bin/xray uuid | tr -d " \n") || panic "Failed to generate REALITY user ID"
+    [ -n "$user_id1" ] || panic "Failed to parse REALITY user ID"
+    user_id2=$(/usr/local/bin/xray uuid | tr -d " \n") || panic "Failed to generate CF Warp user ID"
+    [ -n "$user_id2" ] || panic "Failed to parse CF Warp user ID"
+    short_id=$(openssl rand -hex 8 | tr -d " \n") || panic "Failed to generate short ID"
+    [ -n "$short_id" ] || panic "Failed to parse short ID"
     echo -e "\033[01;33mGenerated configurations\033[0m"
     echo -e "    \033[01;32mX25519 Public Key:   $x25519_pub\033[0m"
     echo -e "    \033[01;32mUser ID 1 (REALITY): $user_id1\033[0m"
     echo -e "    \033[01;32mUser ID 2 (CF Warp): $user_id2\033[0m"
     echo -e "    \033[01;32mShort ID:            $short_id\033[0m"
-    echo -e "    \033[01;32mLink (REALITY):      vless://$user_id1@$public_ip:443?encryption=none&flow=xtls-rprx-vision&security=reality&sni=www.visa.com&fp=chrome&pbk=$x25519_pub&sid=$short_id&type=tcp#$(hostname)\033[0m"
-    echo -e "    \033[01;32mLink (CF Warp):      vless://$user_id2@$public_ip:443?encryption=none&flow=xtls-rprx-vision&security=reality&sni=www.visa.com&fp=chrome&pbk=$x25519_pub&sid=$short_id&type=tcp#$(hostname)\033[0m"
-    cat > $tmpdir/xray.yaml << EOF
+    link_reality="vless://$user_id1@$public_ip:443?encryption=none&flow=xtls-rprx-vision&security=reality&sni=www.visa.com&fp=chrome&pbk=$x25519_pub&sid=$short_id&type=tcp#$(hostname)"
+    link_warp="vless://$user_id2@$public_ip:443?encryption=none&flow=xtls-rprx-vision&security=reality&sni=www.visa.com&fp=chrome&pbk=$x25519_pub&sid=$short_id&type=tcp#$(hostname)"
+    echo -e "    \033[01;32mLink (REALITY):      $link_reality\033[0m"
+    echo -e "    \033[01;32mLink (CF Warp):      $link_warp\033[0m"
+    cat > "$tmpdir/fhs-autoinstall-config.urls" << EOF
+Link (REALITY): $link_reality
+Link (CF Warp): $link_warp
+EOF
+    cat > "$tmpdir/xray.yaml" << EOF
 log:
   loglevel: info
 

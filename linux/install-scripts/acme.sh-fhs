@@ -19,6 +19,7 @@
 #
 
 prefix="/usr/local"
+created_dirs=""
 function check_dirs {
     if [ -d $prefix/share/acme.sh ]; then
         echo -e "Error: \033[4m$prefix/share/acme.sh\033[0m already exists. Please remove it first."
@@ -35,15 +36,27 @@ function check_dirs {
     install -d -o root -g root -m 755 $prefix/share
     install -d -o root -g root -m 755 $prefix/bin
     install -d -o root -g root -m 755 $prefix/etc
+    created_dirs="$prefix/share $prefix/bin $prefix/etc"
+}
+
+function cleanup_created_dirs {
+    for dir in $created_dirs; do
+        rmdir "$dir" 2>/dev/null || true
+    done
 }
 
 check_dirs
 release_url="https://github.com/acmesh-official/acme.sh/archive/refs/heads/master.zip"
 unarchive_dir=$(mktemp -d)
-curl  -Lso $unarchive_dir/acme.sh.zip      $release_url
-unzip -qo  $unarchive_dir/acme.sh.zip -d   $unarchive_dir
-mv         $unarchive_dir/acme.sh-master   $prefix/share/acme.sh
-rm    -rf  $unarchive_dir
+if ! curl -fLso "$unarchive_dir/acme.sh.zip"    "$release_url"; then
+    echo "Error: failed to download acme.sh source." >&2
+    rm -rf "$unarchive_dir"
+    cleanup_created_dirs
+    exit 1
+fi
+unzip -qo  "$unarchive_dir/acme.sh.zip" -d "$unarchive_dir"
+mv         "$unarchive_dir/acme.sh-master" $prefix/share/acme.sh
+rm    -rf  "$unarchive_dir"
 chmod +x                                   $prefix/share/acme.sh/acme.sh
 echo "Installed: $prefix/share/acme.sh"
 
@@ -84,9 +97,21 @@ WantedBy=timers.target
 EOF
 echo "Installed: /etc/systemd/system/acme.sh-renew.timer"
 
-curl  -Lso       $prefix/bin/acme.sh-install-cert     https://lty.vc/acme.sh-install-cert
-chmod +x         $prefix/bin/acme.sh-install-cert
-echo "Installed: $prefix/bin/acme.sh-install-cert"
+install_cert_tmp=$(mktemp)
+install_cert_ok=0
+for attempt in 1 2 3 4 5; do
+    if curl -fLso "$install_cert_tmp" https://lty.vc/acme.sh-install-cert; then
+        install -m 755 "$install_cert_tmp" $prefix/bin/acme.sh-install-cert
+        echo "Installed: $prefix/bin/acme.sh-install-cert"
+        install_cert_ok=1
+        break
+    fi
+    if [ "$attempt" -lt 5 ]; then
+        echo "Warning: failed to download acme.sh-install-cert. Retrying in 5 seconds..."
+        sleep 5
+    fi
+done
+rm -f "$install_cert_tmp"
 
 hooks_dir=/usr/local/etc/acme.sh/post-renew.hooks
 install -d -o root -g root -m 755 $hooks_dir
@@ -110,12 +135,26 @@ EOF
 chmod +x $hooks_dir/10-reload-ngnix
 
 systemctl daemon-reload
-systemctl enable acme.sh-renew.service
-systemctl start  acme.sh-renew.service
-echo "Enabled: acme.sh-renew.service"
-systemctl enable acme.sh-renew.timer
-systemctl start  acme.sh-renew.timer
-echo "Enabled: acme.sh-renew.timer"
+if [ "$install_cert_ok" -eq 1 ]; then
+    systemctl enable acme.sh-renew.service
+    systemctl start  acme.sh-renew.service
+    echo "Enabled: acme.sh-renew.service"
+    systemctl enable acme.sh-renew.timer
+    systemctl start  acme.sh-renew.timer
+    echo "Enabled: acme.sh-renew.timer"
+else
+    cat <<EOF
+Warning: failed to download acme.sh-install-cert after 5 attempts.
+Please install it manually:
+    curl -fLso $prefix/bin/acme.sh-install-cert https://lty.vc/acme.sh-install-cert
+    chmod +x $prefix/bin/acme.sh-install-cert
+The systemd unit and timer files were written but not enabled.
+After installing the helper, enable them manually:
+    systemctl daemon-reload
+    systemctl enable --now acme.sh-renew.service
+    systemctl enable --now acme.sh-renew.timer
+EOF
+fi
 
 echo -e "\n\n\033[1;4;32mInstallation complete.\033[0m"
 whereis acme.sh
