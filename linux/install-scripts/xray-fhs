@@ -194,10 +194,10 @@ create_config() {
     public_ip="$(get_public_endpoint)"
     public_link_host="$(format_vless_host "$public_ip")"
     x25519_output=$(/usr/local/bin/xray x25519) || panic "Failed to generate X25519 private key"
-    x25519_priv=$(printf "%s\n" "$x25519_output" | awk -F: '$1 == "Private key" { gsub(/[[:space:]]/, "", $2); print $2; exit }')
+    x25519_priv=$(parse_x25519_private_key "$x25519_output")
     [ -n "$x25519_priv" ] || panic "Failed to parse X25519 private key"
     x25519_pub_output=$(/usr/local/bin/xray x25519 -i "$x25519_priv") || panic "Failed to derive X25519 public key"
-    x25519_pub=$(printf "%s\n" "$x25519_pub_output" | awk -F: '$1 == "Public key" { gsub(/[[:space:]]/, "", $2); print $2; exit }')
+    x25519_pub=$(parse_x25519_public_key "$x25519_pub_output")
     [ -n "$x25519_pub" ] || panic "Failed to parse X25519 public key"
     user_id1=$(/usr/local/bin/xray uuid | tr -d " \n") || panic "Failed to generate REALITY user ID"
     [ -n "$user_id1" ] || panic "Failed to parse REALITY user ID"
@@ -297,6 +297,26 @@ get_public_endpoint() {
 
 parse_trace_ip() {
     printf "%s\n" "$1" | awk -F= '$1 == "ip" { print $2; exit }' | tr -d "\n"
+}
+
+parse_x25519_private_key() {
+    printf "%s\n" "$1" | awk -F: '
+        $1 == "Private key" || $1 == "PrivateKey" {
+            gsub(/[[:space:]]/, "", $2)
+            print $2
+            exit
+        }
+    '
+}
+
+parse_x25519_public_key() {
+    printf "%s\n" "$1" | awk -F: '
+        $1 == "Public key" || $1 == "PublicKey" || $1 == "Password (PublicKey)" {
+            gsub(/[[:space:]]/, "", $2)
+            print $2
+            exit
+        }
+    '
 }
 
 format_vless_host() {
