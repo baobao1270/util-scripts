@@ -7,6 +7,8 @@
 
 set -e
 
+DEFAULT_XRAY_VERSION=26.3.27
+
 panic() {
     echo -e "\033[01;31mError: $1\033[0m" 1>&2
     exit 1
@@ -14,9 +16,14 @@ panic() {
 
 get_latest_xray_version() {
     latest_url="$(mirror_url https://api.github.com/repos/XTLS/Xray-core/releases/latest)"
-    version=$(curl -fsSL "$latest_url" | jq -r '.tag_name | sub("^v"; "")') || panic "Failed to resolve latest Xray version"
-    [ -n "$version" ] || panic "Failed to resolve latest Xray version"
-    [ "$version" != "null" ] || panic "Failed to resolve latest Xray version"
+    if ! version=$(curl -fsSL "$latest_url" | jq -r '.tag_name | sub("^v"; "")'); then
+        echo "$DEFAULT_XRAY_VERSION"
+        return
+    fi
+    if [ -z "$version" ] || [ "$version" = "null" ]; then
+        echo "$DEFAULT_XRAY_VERSION"
+        return
+    fi
     echo "$version"
 }
 
@@ -184,9 +191,8 @@ EOF
 
 create_config() {
     tmpdir="$1"
-    public_ip_trace=$(curl -sf --connect-timeout 5 https://1.1.1.1/cdn-cgi/trace) || panic "Failed to get public IP"
-    public_ip=$(printf "%s\n" "$public_ip_trace" | awk -F= '$1 == "ip" { print $2; exit }' | tr -d "\n")
-    [ -n "$public_ip" ] || panic "Failed to parse public IP"
+    public_ip="$(get_public_endpoint)"
+    public_link_host="$(format_vless_host "$public_ip")"
     x25519_output=$(/usr/local/bin/xray x25519) || panic "Failed to generate X25519 private key"
     x25519_priv=$(printf "%s\n" "$x25519_output" | awk -F: '$1 == "Private key" { gsub(/[[:space:]]/, "", $2); print $2; exit }')
     [ -n "$x25519_priv" ] || panic "Failed to parse X25519 private key"
@@ -204,8 +210,8 @@ create_config() {
     echo -e "    \033[01;32mUser ID 1 (REALITY): $user_id1\033[0m"
     echo -e "    \033[01;32mUser ID 2 (CF Warp): $user_id2\033[0m"
     echo -e "    \033[01;32mShort ID:            $short_id\033[0m"
-    link_reality="vless://$user_id1@$public_ip:443?encryption=none&flow=xtls-rprx-vision&security=reality&sni=www.visa.com&fp=chrome&pbk=$x25519_pub&sid=$short_id&type=tcp#$(hostname)"
-    link_warp="vless://$user_id2@$public_ip:443?encryption=none&flow=xtls-rprx-vision&security=reality&sni=www.visa.com&fp=chrome&pbk=$x25519_pub&sid=$short_id&type=tcp#$(hostname)"
+    link_reality="vless://$user_id1@$public_link_host:443?encryption=none&flow=xtls-rprx-vision&security=reality&sni=www.visa.com&fp=chrome&pbk=$x25519_pub&sid=$short_id&type=tcp#$(hostname)"
+    link_warp="vless://$user_id2@$public_link_host:443?encryption=none&flow=xtls-rprx-vision&security=reality&sni=www.visa.com&fp=chrome&pbk=$x25519_pub&sid=$short_id&type=tcp#$(hostname)"
     echo -e "    \033[01;32mLink (REALITY):      $link_reality\033[0m"
     echo -e "    \033[01;32mLink (CF Warp):      $link_warp\033[0m"
     cat > "$tmpdir/fhs-autoinstall-config.urls" << EOF
@@ -269,6 +275,36 @@ inbounds:
         shortIds:
           - $short_id
 EOF
+}
+
+get_public_endpoint() {
+    public_ip_trace=""
+    public_ip=""
+    if public_ip_trace=$(curl -sf --connect-timeout 5 https://1.1.1.1/cdn-cgi/trace); then
+        public_ip=$(parse_trace_ip "$public_ip_trace")
+    fi
+    if [ -z "$public_ip" ]; then
+        if public_ip_trace=$(curl -6 -sf --connect-timeout 5 https://cloudflare.com/cdn-cgi/trace); then
+            public_ip=$(parse_trace_ip "$public_ip_trace")
+        fi
+    fi
+    if [ -n "$public_ip" ]; then
+        echo "$public_ip"
+        return
+    fi
+    hostname -f || panic "Failed to get public endpoint"
+}
+
+parse_trace_ip() {
+    printf "%s\n" "$1" | awk -F= '$1 == "ip" { print $2; exit }' | tr -d "\n"
+}
+
+format_vless_host() {
+    host="$1"
+    case "$host" in
+        *:*) echo "[$host]" ;;
+        *) echo "$host" ;;
+    esac
 }
 
 main
