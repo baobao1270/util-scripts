@@ -10,6 +10,11 @@
 #
 
 set -e
+set -o pipefail
+
+print_success() {
+    printf '\033[0;32m%s\033[0m\n' "$1"
+}
 
 check_nginx_config_pristine() {
     if [ ! -e /etc/nginx ]; then
@@ -36,15 +41,34 @@ EOF
         exit 1
     fi
 
-    unowned_entries="$(find /etc/nginx -mindepth 1 -print -exec dpkg -S {} \; 2>&1 >/dev/null | sed -n 's/^dpkg-query: no path found matching pattern //p')"
-    if [ -n "$unowned_entries" ]; then
-        cat >&2 <<EOF
+    unowned_entries=()
+    while IFS= read -r -d '' entry; do
+        package_entry="$entry"
+        if [ -L "$entry" ]; then
+            # Debian post-install scripts create these links outside dpkg's file list.
+            if ! package_entry="$(readlink -f -- "$entry")"; then
+                unowned_entries+=("$entry")
+                continue
+            fi
+        fi
+
+        if ! dpkg -S -- "$package_entry" >/dev/null 2>&1; then
+            unowned_entries+=("$entry")
+        fi
+    done < <(find /etc/nginx -mindepth 1 -print0)
+
+    if [ "${#unowned_entries[@]}" -gt 0 ]; then
+        {
+            cat <<'EOF'
 Error: /etc/nginx contains files not owned by installed packages:
-$unowned_entries
+EOF
+            printf '%s\n' "${unowned_entries[@]}"
+            cat <<'EOF'
 Please inspect and back up your NGINX configuration, then remove NGINX completely with:
     apt autoremove --purge nginx nginx-common nginx-full
 After that, run this script again.
 EOF
+        } >&2
         exit 1
     fi
 }
@@ -55,10 +79,16 @@ else
     apt-get install -y nginx-full
 fi
 
+if ! command -v git >/dev/null 2>&1; then
+    echo "Git is not installed. Installing git."
+    apt-get install -y git
+fi
+
 check_nginx_config_pristine
 rm -rf /tmp/github.com-baobao1270-util-scripts
 git clone https://github.com/baobao1270/util-scripts /tmp/github.com-baobao1270-util-scripts
 rm -rvf /etc/nginx/sites-available
+print_success "Previous NGINX site configuration cleanup completed."
 mv -v   /tmp/github.com-baobao1270-util-scripts/nginx/* /etc/nginx
 cd /etc/nginx
 sed  -i '/^#/d'               /etc/nginx/nginx.conf
@@ -80,4 +110,5 @@ YdEIqUuyyOP7uWrat2DX9GgdT0Kj3jlN9K5W7edjcrsZCwenyO4KbXCeAvzhzffi
 ssbzSibBsu/6iGtCOGEoXJf//////////wIBAg==
 -----END DH PARAMETERS-----
 EOF
-curl -L lty.vc/ngxcmd | bash -s update
+curl -fL lty.vc/ngxcmd | bash -s update
+print_success "NGINX installation completed successfully."
